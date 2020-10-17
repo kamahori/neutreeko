@@ -1,51 +1,79 @@
 #include <stdio.h>
 
-struct locations {
-  char b1x; //黒玉1のx座標 A B C D E
-  char b1y; //黒玉1のy座標 1 2 3 4 5
-  char b2x; //黒玉2のx座標 A B C D E
-  char b2y; //黒玉2のy座標 1 2 3 4 5
-  char b3x; //黒玉3のx座標 A B C D E
-  char b3y; //黒玉3のy座標 1 2 3 4 5
+enum COLOR {black,white,empty};
 
-  char w1x; //白玉1のx座標 A B C D E
-  char w1y; //白玉1のy座標 1 2 3 4 5
-  char w2x; //白玉2のx座標 A B C D E
-  char w2y; //白玉2のy座標 1 2 3 4 5
-  char w3x; //白玉3のx座標 A B C D E
-  char w3y; //白玉3のy座標 1 2 3 4 5
-};
+enum COLOR b[5][5]; //4Eはb[3][4],2Bはb[1][1],というように…y座標、x座標の順
+enum COLOR color;
 
-void blackmove(char *input)
+void init(void) //初期化関数
 {
+  int x,y;
 
+  for (x=0;x<5;x++) //基本全部空
+    for (y=0;y<5;y++)
+      b[x][y]=empty; 
+  b[0][1]=black; //B1には黒
+  b[0][3]=black; //D1には黒
+  b[3][2]=black; //C4には黒
+  b[4][1]=white; //B5には白
+  b[4][3]=white; //D5には白
+  b[1][2]=white; //C2には白
+}
 
+int *moveable(int y,int x) //座標を受け取って動ける場所を列挙する関数
+{
+  int i,j,s,answer[8][2]={100};
+  for (i=-1;i<2;i++)
+    for(j=-1;j<2;j++){ //全方位探索
+      
+      if (i==0 && j==0) //方向がないときは考えない
+	continue;
 
-int main(int argc) {
+      for (s=1;s<5;s++){ //その方位でどこまで行けるか
+	
+	if (
+	    0<=y+j*s &&
+	    y+j*s<5 &&
+	    0<=x+j*s &&
+	    x+j*s<5
+	    ){
+	  
+	  if (b[y+j*s][x+j*s]==empty){ //進んだ先のマスが空なら
+	    answer[i+j-2][0]=y+j*s; //answerのi+j-2（方角のパラメータ）にそのマスを書き込む
+	    answer[i+j-2][1]=x+j*s;
+	  }
+	}
+      }
+    }
+  return answer; //answerには動ける場所全てが格納されている、進めない方位には100が入っている  
+}
 
-  struct locations locations;
-
-  locations.b1x ='B';
-  locations.b1y ='1';
-  locations.b2x ='D';
-  locations.b2y ='1';
-  locations.b3x ='C';
-  locations.b3y ='4';
-
-  locations.w1x ='B';
-  locations.w1y ='5';
-  locations.w2x ='D';
-  locations.w2y ='5';
-  locations.w3x ='C';
-  locations.w3y ='2'; //最初の配置
-
+void move(enum COLOR color) //石を動かす関数
+{
   char input[5];
-  scanf("%s",input);
-  if (argc==0) //黒が先手
+  int y,x,w,z,i;
 
-  else if (argc==1){ //白が先手
+  scanf("%s",input); //入力"4E2C"などを受け取って
 
-  else 
-    exit(1);
+  y=input[0]-49; //ASCIIコードを座標に変換
+  x=input[1]-65;
+  w=input[2]-49;
+  z=input[3]-65;
 
+  if (0<=y && y<5 && 0<=x && x<5 && 0<=w && w<5 && 0<=z && z<5) //存在するマスを指定していて
+    if (b[y][x]==color) {//元々石が置いてあって
+      for (i=0;i<8;i++)
+	if (movebable(y,x)[i][0]==w && moveable(y,x)[i][1]==z){ //石が移動できるなら
+	  b[y][x]=empty; //元いた場所を空にして
+	  b[w][z]=color; //移動する
+	}
+	else
+	  ;
+      if (b[y][x]==color) //もし石が移動していなかったら
+	puts("You lost!");
+	exit(1);
+    }
+    else　//元々石が置いてなかったら
+      puts("You lost!");
+      exit(1); 
 }
