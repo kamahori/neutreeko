@@ -4,25 +4,53 @@
 int b[5][5]; //4Eはb[3][4],2Bはb[1][1],というように…y座標、x座標の順
 int answer[9][2];
 
-void init(void) //初期化関数
-{
-    int x, y;
+int BLACK = 1;
+int WHITE = 1;
+int DEBUG = 0;
 
+void init(void) { //初期化関数
+    int x, y;
     for (x = 0; x < 5; x++){ //基本全部空
         for (y = 0; y < 5; y++){
 			b[x][y] = 0; 
         }
     }
-    b[0][1] = 1; //B1には黒
-    b[0][3] = 1; //D1には黒
-    b[3][2] = 1; //C4には黒
-    b[4][1] = 2; //B5には白
-    b[4][3] = 2; //D5には白
-    b[1][2] = 2; //C2には白
+    b[0][1] = BLACK; //B1には黒
+    b[0][3] = BLACK; //D1には黒
+    b[3][2] = BLACK; //C4には黒
+    b[4][1] = WHITE; //B5には白
+    b[4][3] = WHITE; //D5には白
+    b[1][2] = WHITE; //C2には白
 }
 
-void moveable(int y, int x) //座標を受け取って動ける場所を列挙する関数
-{
+void print(void) {
+	if (DEBUG == 0) return;
+
+	for (int i = 0; i < 5; i++) {
+		for (int j = 0; j < 5; j++) {
+			printf("%d", b[i][j]);
+		}
+		printf("\n");
+	}
+}
+
+int is_finished(void) {
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 5; j++) {
+			for (int k = 0; k < 3; k++) {
+				if (b[i][j] != 0 && b[i][j] == b[i + 1][j] && b[i + 1][j] == b[i + 2][j]) return 1;
+				if (b[j][i] != 0 && b[j][i] == b[j][i + 1] && b[j][i + 1] == b[j][i + 2]) return 1;
+				if (b[i][k] != 0 && b[i][k] == b[i + 1][k + 1] && b[i + 1][k + 1] == b[i + 2][k + 2]) return 1;
+				if (b[i + 2][k] != 0 && b[i + 2][k] == b[i + 1][k + 1] && b[i + 1][k + 1] == b[i][k + 2]) return 1;
+			}
+		}
+	}
+	return 0;
+}
+
+void moveable(int y, int x) { 
+	//座標を受け取って動ける場所を列挙する関数
+	//answerに動ける場所全てが格納される 
     int i, j, s, k;
     for (i = -1; i <= 1; i++){
         for (j = -1; j <= 1; j++){ //全方位探索
@@ -35,14 +63,14 @@ void moveable(int y, int x) //座標を受け取って動ける場所を列挙�
 				if (b[y + j * s][x + i * s] == 0){ //進んだ先のマスが空なら
 					answer[k][0] = y + j * s; //answerのi+j-2（方角のパラメータ）にそのマスを書き込む
 					answer[k][1] = x + i * s;
-					k++;
 				} else {
 					break;
 				}
 			}
+			k++;
         }
     }
-//answerには動ける場所全てが格納されている  
+ 
 }
 
 int is_valid_move(char *input) {
@@ -53,8 +81,7 @@ int is_valid_move(char *input) {
 	return 1;
 }
 
-void move(int color) //石を動かす関数
-{
+void get_input(int color) { //石を動かす関数
     char input[5];
     int y, x, w, z, i;
 
@@ -76,106 +103,83 @@ void move(int color) //石を動かす関数
     }
 
 	moveable(y, x);
-	for (i = 0; i < 8; i++){
+
+	for (i = 0; i < 9; i++){
 		if (answer[i][0] == w && answer[i][1] == z){ //石が移動できるなら
 			b[y][x] = 0; //元いた場所を空にして
 			b[w][z] = color; //移動する
-			break;
+			return;
 		}
 	}
+
+	// 移動できない場合
+	puts("Error");
+	exit(1);
 }
 
-void print(void) {
-	for (int i = 0; i < 5; i++) {
-		for (int j = 0; j < 5; j++) {
-			printf("%d", b[i][j]);
-		}
-		printf("\n");
-	}
+void compute_output(int color) {
+	// コンピュータの色がcolor
+	// bの値を変化させ、動きをprint
 }
 
-int is_finished(void) {
-	for (int i = 0; i < 3; i++) {
-		for (int j = 0; j < 5; j++) {
-			for (int k = 0; k < 3; k++) {
-				if (b[i][j] == b[i + 1][j] && b[i + 1][j] == b[i + 2][j]) return 1;
-				if (b[j][i] == b[j][i + 1] && b[j][i + 1] == b[j][i + 2]) return 1;
-				if (b[i][k] == b[i + 1][k + 1] && b[i + 1][k + 1] == b[i + 2][k + 2]) return 1;
-				if (b[i + 2][k] == b[i + 1][k + 1] && b[i + 1][k + 1] == b[i][k + 2]) return 1;
-			}
-		}
-	}
-	return 0;
-}
-
-void finish(void) //終了判定
-{
-    int i, j, k;
-    for (i = 0; i < 3; i++){
-		for (j = 0; j < 5; j++){
-			for (k = 0; k < 3; k++){
-				if (
-					(
-					b[i][j]==1 &&
-					b[i][j]==b[i+1][j] &&
-					b[i][j]==b[i+2][j]
-					) ||  //縦に一致
-					(
-					b[j][i]==1 &&
-					b[j][i]==b[j][i+1] &&
-					b[j][i]==b[j][i+2]
-					) ||  //横に一致
-					(
-					b[i][k]==1 &&
-					b[i][k]==b[i+1][k+1] &&
-					b[i][k]==b[i+2][k+2]
-					) || //斜めに一致
-					(
-					b[i+2][k]==1 &&
-					b[i+2][k]==b[i+1][k+1] &&
-					b[i+2][k]==b[i][k+2]
-					)){  //斜めに一致
-						puts("You won!"); //黒の勝ち
-						exit(0);
-				}
-			}
-		}
-	}
-
-	for (i = 0; i < 3; i++){
-		for (j = 0; j < 5; j++){
-			for (k = 0; k < 3; k++){
-				if ((b[i][j]==2 && b[i][j]==b[i+1][j] && b[i][j]==b[i+2][j]) ||
-				(
-				b[j][i]==2 &&
-				b[j][i]==b[j][i+1] &&
-				b[j][i]==b[j][i+2]
-				) ||
-				(
-				b[i][k]==2 &&
-				b[i][k]==b[i+1][k+1] &&
-				b[i][k]==b[i+2][k+2]
-				) ||
-				(
-				b[i+2][k]==2 &&
-				b[i+2][k]==b[i+1][k+1] &&
-				b[i+2][k]==b[i][k+2]
-				)){
-					puts("You lost!");
-					exit(0);
-				}
-			}
-		}
-	}
-}
-
-
-int main(void)
+int main(int argc, char *argv[])
 {
 	init();
-	int i, j; 
-	move(1);
-	for (i=0;i<5;i++)
-		for (j=0;j<5;j++)
-			printf("%d",b[i][j]);
+	int cnt = 0;
+
+	if (argv[1] == 0) {
+		// 人が先手(黒)
+		while (1) {
+			// 人の手番
+			get_input(BLACK);
+			cnt++;
+			print();
+			if (is_finished()) {
+				puts("You Win");
+				exit(0);
+			}
+
+			// CPUの手番
+			compute_output(WHITE);
+			cnt++;
+			print();
+			if (is_finished()) {
+				puts("You Lose");
+				exit(0);
+			}
+
+			if (cnt >= 300) {
+				puts("Even");
+				exit(0);
+			}
+		}
+	} else {
+		// コンピュータが先手(黒)
+		while (1) {
+			// CPUの手番
+			compute_output(BLACK);
+			cnt++;
+			print();
+			if (is_finished()) {
+				puts("You Lose");
+				exit(0);
+			}
+
+			// 人の手番
+			get_input(WHITE);
+			cnt++;
+			print();
+			if (is_finished()) {
+				puts("You Win");
+				exit(0);
+			}
+
+			if (cnt >= 300) {
+				puts("Even");
+				exit(0);
+			}
+		}
+	}
+
+	return 0;
 }
