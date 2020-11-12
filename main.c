@@ -45,6 +45,14 @@ void moveable(int y, int x) //座標を受け取って動ける場所を列挙�
 //answerには動ける場所全てが格納されている  
 }
 
+int is_valid_move(char *input) {
+	if (input[0] < '0' || input[0] > '4') return 0;
+	if (input[1] < 'A' || input[1] > 'E') return 0;
+	if (input[2] < '0' || input[2] > '4') return 0;
+	if (input[3] < 'A' || input[3] > 'E') return 0;
+	return 1;
+}
+
 void move(int color) //石を動かす関数
 {
     char input[5];
@@ -57,27 +65,47 @@ void move(int color) //石を動かす関数
     w = input[2] - 49;
     z = input[3] - 65;
 
+	if (!is_valid_move(input) || b[y][x] != color) {
+		puts("Error");
+		exit(1);
+	}
+
     for (i = 0; i < 9; i++){ //answerの初期化
         answer[i][0] = 100;
         answer[i][1] = 100;
     }
 
-    if (0 <= y && y < 5 && 0 <= x && x < 5 && 0 <= w && w < 5 && 0 <= z && z < 5){ //存在するマスを指定していて
-		if (b[y][x] == color) {//元々石が置いてあって
-			moveable(y, x);
-			for (i = 0; i < 8; i++){
-				if (answer[i][0] == w && answer[i][1] == z){ //石が移動できるなら
-					b[y][x] = 0; //元いた場所を空にして
-					b[w][z] = color; //移動する
-				}
-			}
-			if (b[y][x] == color){ //もし石が移動していなかったら
-				puts("You lost!");
-			}
-		} else { //もし石がなかったら
-			puts("You lost!");
+	moveable(y, x);
+	for (i = 0; i < 8; i++){
+		if (answer[i][0] == w && answer[i][1] == z){ //石が移動できるなら
+			b[y][x] = 0; //元いた場所を空にして
+			b[w][z] = color; //移動する
+			break;
 		}
 	}
+}
+
+void print(void) {
+	for (int i = 0; i < 5; i++) {
+		for (int j = 0; j < 5; j++) {
+			printf("%d", b[i][j]);
+		}
+		printf("\n");
+	}
+}
+
+int is_finished(void) {
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 5; j++) {
+			for (int k = 0; k < 3; k++) {
+				if (b[i][j] == b[i + 1][j] && b[i + 1][j] == b[i + 2][j]) return 1;
+				if (b[j][i] == b[j][i + 1] && b[j][i + 1] == b[j][i + 2]) return 1;
+				if (b[i][k] == b[i + 1][k + 1] && b[i + 1][k + 1] == b[i + 2][k + 2]) return 1;
+				if (b[i + 2][k] == b[i + 1][k + 1] && b[i + 1][k + 1] == b[i][k + 2]) return 1;
+			}
+		}
+	}
+	return 0;
 }
 
 void finish(void) //終了判定
@@ -145,7 +173,7 @@ void finish(void) //終了判定
 int main(void)
 {
 	init();
-	int i,j; 
+	int i, j; 
 	move(1);
 	for (i=0;i<5;i++)
 		for (j=0;j<5;j++)
