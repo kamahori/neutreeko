@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 const int BLACK = 1;
 const int WHITE = 2;
@@ -27,13 +28,48 @@ const int COMB_LEN = 2500;
 1|  0  1  2  3  4
 */
 
+typedef struct state {
+    char pos[6];
+    // {黒，黒，黒，白，白，白} 場所のリスト
+    // 昇順を仮定
+} state;
+
 int scores[1 << 30];
 int next_move[1 << 30];
+
+void printb(unsigned int v) {
+    unsigned int mask = (int)1 << (sizeof(v) * CHAR_BIT - 1);
+    do putchar(mask & v ? '1' : '0');
+    while (mask >>= 1);
+    printf("\n");
+}
 
 int switch_player(const int x) {
     int y = (x & ((1 << 15) - 1)) << 15;
     y |= (x >> 15);
     return y;
+}
+
+int state_to_int(state s) {
+    int res = 0;
+    res |= (s.pos[0] - 'a') << 25;
+    res |= (s.pos[1] - 'a') << 20;
+    res |= (s.pos[2] - 'a') << 15;
+    res |= (s.pos[3] - 'a') << 10;
+    res |= (s.pos[4] - 'a') << 5;
+    res |= (s.pos[5] - 'a');
+    return res;
+}
+
+state int_to_state(int x) {
+    state res;
+    res.pos[0] = ((x >> 25) + 'a') & 31;
+    res.pos[1] = ((x >> 20) + 'a') & 31;
+    res.pos[2] = ((x >> 15) + 'a') & 31;
+    res.pos[3] = ((x >> 10) + 'a') & 31;
+    res.pos[4] = ((x >> 5) + 'a') & 31;
+    res.pos[5] = ((x >> 0) + 'a') & 31;
+    return res;
 }
 
 int is_won(int x, int color) {
@@ -61,12 +97,12 @@ int is_won(int x, int color) {
 void recursive_comb(int** res, int* positions, int* indexes, int s, int rest, int* iter) {
     if (rest == 0) {
         for (int i = 0; i < 3; i++) res[*iter][i] = indexes[i];
-        printf("%d, %d, %d\n", indexes[0], indexes[1], indexes[2]);
         *iter += 1;
         return;
     }
-    if (s >= 25 || positions[s] == -1) return;
+    if (s >= 25) return;
     recursive_comb(res, positions, indexes, s + 1, rest, iter);
+    if (positions[s] == -1) return;
     indexes[3 - rest] = s;
     recursive_comb(res, positions, indexes, s + 1, rest - 1, iter);
 }
@@ -79,7 +115,6 @@ int** comb(int* positions) {
         res[i] = (int*)malloc(sizeof(int) * 3);
     }
     int iter = 0;
-    // printf("before recursion\n");
     recursive_comb(res, positions, indexes, 0, 3, &iter);
     return res;
 }
@@ -90,27 +125,19 @@ int* get_all_states() {
     int iter = 0;
 
     for (int i = 0; i < 25; i++) positions[i] = i;
-    // printf("before comb1\n");
     int** comb1 = comb(positions);
-    printf("------------------------\n");
     for (int i = 0; i < COMB_LEN; i++) {
-        if (comb1[i][0] == 0 && comb1[i][1] == 0) continue;
-        if (comb1[i][1] == 0 || comb1[i][2] == 0) continue;
         int remain[25];
         memcpy(remain, positions, sizeof(positions));
         for (int k = 0; k < 3; k++) remain[comb1[i][k]] = -1;
         int** comb2 = comb(remain);
         for (int j = 0; j < COMB_LEN; j++) {
-            if (comb2[j][0] == 0 && comb2[j][1] == 0) continue;
-            if (comb2[j][1] == 0 || comb2[j][2] == 0) continue;
             int state = (comb1[i][0] << 25) + (comb1[i][1] << 20) + (comb1[i][2] << 15) + (comb2[j][0] << 10) + (comb2[j][1] << 5) + comb2[j][2];
             if (is_won(state, BLACK) && is_won(state, WHITE)) continue;
-            // printf("%d, %d, %d, %d, %d, %d\n", comb1[i][0], comb1[i][1], comb1[i][2], comb2[j][0], comb2[j][1], comb2[j][2]);
             res[iter] = state;
             iter++;
         }
     }
-    printf("in get_all_states, iter:%d\n", iter);
 
     return res;
 }
@@ -158,14 +185,11 @@ int* get_moves(const int x) {
 
 int main() {
     int* states = get_all_states();
-    // printf("get states\n");
     int* neutrals = (int*)malloc(sizeof(int) * LIST_LEN);
-    // printf("neutrals\n");
     int iter = 0;
     
     for (int i = 0; i < LIST_LEN; i++) {
         if (states[i] == 0) continue; // valid state cannot be 0
-        printf("%d\n", states[i]);
         if (is_won(states[i], BLACK)) scores[i] = MAX_DEPTH;
         else if (is_won(states[i], WHITE)) scores[i] = -MAX_DEPTH;
         else {
@@ -173,12 +197,9 @@ int main() {
             iter++;
         }
     }
-    // printf("first itertaion\n");
     
     int prev = -1;
-    // printf("state,move\n");
     while (prev != iter) {
-        printf("in while, %d\n", iter);
         prev = iter;
         iter = 0;
         int* tmp = (int*)malloc(sizeof(int) * LIST_LEN);
@@ -206,10 +227,9 @@ int main() {
             else scores[neutrals[i]] = 1 - min;
 
             next_move[neutrals[i]] = best_move;
-            printf("%d,%d\n", neutrals[i], best_move);
         }
         
-        memcpy(neutrals, tmp, sizeof(tmp));
+        memcpy(neutrals, tmp, sizeof(int) * LIST_LEN);
         free(tmp);
     }
     free(states);
