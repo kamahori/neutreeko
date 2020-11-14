@@ -71,7 +71,7 @@ int is_finished(board b) {
     return 0;
 }
 
-void moveable(board b, int y, int x) {
+void moveable(board B, int y, int x) {
     //座標を受け取って動ける場所を列挙する関数
     //answerに動ける場所全てが格納される 
     int i;
@@ -95,7 +95,7 @@ void moveable(board b, int y, int x) {
                     break;
                 }
 
-                if (b.state[y + j * s][x + i * s] == 0) { //進んだ先のマスが空なら
+                if (B.state[y + j * s][x + i * s] == 0) { //進んだ先のマスが空なら
                     answer[k][0] = y + j * s; //answerのi+j-2（方角のパラメータ）にそのマスを書き込む
                     answer[k][1] = x + i * s;
                 }
@@ -187,19 +187,18 @@ board minimax(board x, int depth, int color) {
             y.point = 100;
             return y;
         }
-        board z = minimax(y, depth - 1, color);
+        board z = minimax(y, depth - 1, (color + 1) % 2);
         if (i == 0) {
-            ans = z;
+            ans = y;
             continue;
         }
         if (depth % 2 == 1) {
             if (z.point > ans.point) {
-                ans = z;
+                ans = y;
             }
-        }
-        else {
+        } else {
             if (z.point < ans.point) {
-                ans = z;
+                ans = y;
             }
         }
     }
@@ -213,7 +212,7 @@ void diff(board b, board b_next) {
     for (int i = 0; i < 5; i++) {
         for (int j = 0; j < 5; j++) {
             if (b.state[i][j] == b_next.state[i][j]) continue;
-            if (b.state[i][j] == 0) {
+            if (b_next.state[i][j] == 0) {
                 res[0] = '1' + i;
                 res[1] = 'A' + j;
             } else {
@@ -228,7 +227,7 @@ void diff(board b, board b_next) {
 void compute_output(int color) {
     // コンピュータの色がcolor
     // bの値を変化させ、動きをprint
-    board b_next = minimax(b, 5, color);
+    board b_next = minimax(b, 3, color);
     diff(b, b_next);
     b = b_next;
 }
