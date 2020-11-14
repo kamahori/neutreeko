@@ -48,9 +48,9 @@ void print(void) {
     printf("   A B C D E\n");
     printf("  ----------\n");
     for (int i = 0; i < 5; i++) {
-        printf("%d| ", i + 1);
+        printf("%d| ", 5 - i);
         for (int j = 0; j < 5; j++) {
-            printf("%d ", b.state[i][j]);
+            printf("%d ", b.state[4 - i][j]);
         }
         printf("\n");
     }
