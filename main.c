@@ -187,7 +187,7 @@ board minimax(board x, int depth, int color) {
             y.point = 100;
             return y;
         }
-        board z = minimax(y, depth - 1, (color + 1) % 2);
+        board z = minimax(y, depth - 1, 3 - color);
         if (i == 0) {
             ans = y;
             continue;
