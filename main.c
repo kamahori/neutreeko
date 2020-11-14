@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 ; //4Eはb[3][4],2Bはb[1][1],というように…y座標、x座標の順
 int answer[8][2];
@@ -9,6 +10,18 @@ typedef struct board {
     int state[5][5];
     int point;
 } board;
+
+typedef struct move {
+    //(x1, y1)から(x2, y2)への遷移
+    int x1;
+    int y1;
+    int x2;
+    int y2;
+} move;
+
+typedef struct next_board{
+    move travel[24];
+} next_board;
 
 board b;
 
@@ -106,7 +119,7 @@ void get_input(int color) { //石を動かす関数
     char input[5];
     int y, x, w, z, i;
 
-    scanf_s("%s", input); //入力"4E2C"などを受け取って
+    scanf("%s", input); //入力"4E2C"などを受け取って
 
     y = input[0] - '1'; //ASCIIコードを座標に変換
     x = input[1] - 'A';
@@ -133,18 +146,6 @@ void get_input(int color) { //石を動かす関数
     exit(1);
 }
 
-typedef struct move {
-    //(x1, y1)から(x2, y2)への遷移
-    int x1;
-    int y1;
-    int x2;
-    int y2;
-}move;
-
-typedef struct next_board{
-    move travel[24];
-}next_board;
-
 board minimax(board x, int depth, int color) {
     if (depth == 0) {
         x.point = 0;
@@ -162,7 +163,7 @@ board minimax(board x, int depth, int color) {
                 moveable(i, j);
 
                 for (k = 0; k < 8; k++) {
-                    if (!answer[k][0] != 100) {
+                    if (answer[k][0] != 100) {
                         next.travel[count].x1 = i;
                         next.travel[count].y1 = j;
                         next.travel[count].x2 = answer[k][0];
@@ -208,14 +209,13 @@ void compute_output(int color) {
     // コンピュータの色がcolor
     // bの値を変化させ、動きをprint
     b = minimax(b, 5, color);
-    print();
 }
 
 int main(int argc, char* argv[]) {
     init();
     int cnt = 0;
 
-    if (argv[1] == 0) {
+    if (strcmp(argv[1], "0")) {
         // 人が先手(黒)
         while (1) {
             // 人の手番
