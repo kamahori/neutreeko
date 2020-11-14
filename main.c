@@ -71,7 +71,7 @@ int is_finished(board b) {
     return 0;
 }
 
-void moveable(int y, int x) {
+void moveable(board b, int y, int x) {
     //座標を受け取って動ける場所を列挙する関数
     //answerに動ける場所全てが格納される 
     int i;
@@ -133,7 +133,7 @@ void get_input(int color) { //石を動かす関数
         exit(1);
     }
 
-    moveable(y, x);
+    moveable(b, y, x);
 
     for (i = 0; i < 9; i++) {
         if (answer[i][0] == w && answer[i][1] == z) { //石が移動できるなら
@@ -162,7 +162,7 @@ board minimax(board x, int depth, int color) {
         for (j = 0; j < 5; j++) {
             if (x.state[i][j] == color) {
 
-                moveable(i, j);
+                moveable(x, i, j);
 
                 for (k = 0; k < 8; k++) {
                     if (answer[k][0] != 100) {
