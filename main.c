@@ -2,8 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-; //4Eはb[3][4],2Bはb[1][1],というように…y座標、x座標の順
 int answer[8][2];
+int BLACK = 1;
+int WHITE = 2;
+int DEBUG = 0;
 
 //boardは盤面の状態stateと盤面の点数pointを保持する構造体
 typedef struct board {
@@ -25,10 +27,6 @@ typedef struct next_board{
 
 board b;
 
-int BLACK = 1;
-int WHITE = 2;
-int DEBUG = 0;
-
 void init() { //初期化関数
     int x, y;
     for (x = 0; x < 5; x++) { //基本全部空
@@ -47,12 +45,16 @@ void init() { //初期化関数
 void print(void) {
     if (DEBUG == 0) return;
 
+    printf("   A B C D E\n");
+    printf("  ----------\n");
     for (int i = 0; i < 5; i++) {
+        printf("%d| ", i + 1);
         for (int j = 0; j < 5; j++) {
-            printf("%d", b.state[i][j]);
+            printf("%d ", b.state[i][j]);
         }
         printf("\n");
     }
+    printf("\n");
 }
 
 int is_finished(board b) {
@@ -205,19 +207,42 @@ board minimax(board x, int depth, int color) {
     return ans;
 }
 
+void diff(board b, board b_next) {
+    // b -> b_nextで変化したところを出力する
+    char res[4];
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 5; j++) {
+            if (b.state[i][j] == b_next.state[i][j]) continue;
+            if (b.state[i][j] == 0) {
+                res[0] = '1' + i;
+                res[1] = 'A' + j;
+            } else {
+                res[2] = '1' + i;
+                res[3] = 'A' + j;
+            }
+        }
+    }
+    printf("%s\n", res);
+}
+
 void compute_output(int color) {
     // コンピュータの色がcolor
     // bの値を変化させ、動きをprint
-    b = minimax(b, 5, color);
+    board b_next = minimax(b, 5, color);
+    diff(b, b_next);
+    b = b_next;
 }
 
 int main(int argc, char* argv[]) {
     init();
     int cnt = 0;
 
-    if (strcmp(argv[1], "0")) {
+    if (argc >= 3 && !strcmp(argv[2], "1")) DEBUG = 1;
+
+    if (!strcmp(argv[1], "0")) {
         // 人が先手(黒)
         while (1) {
+            print();
             // 人の手番
             get_input(BLACK);
             cnt++;
@@ -230,13 +255,14 @@ int main(int argc, char* argv[]) {
             // CPUの手番
             compute_output(WHITE);
             cnt++;
-            print();
             if (is_finished(b)) {
+                print();
                 puts("You Lose");
                 exit(0);
             }
 
             if (cnt >= 300) {
+                print();
                 puts("Even");
                 exit(0);
             }
@@ -245,6 +271,7 @@ int main(int argc, char* argv[]) {
     else {
         // コンピュータが先手(黒)
         while (1) {
+            print();
             // CPUの手番
             compute_output(BLACK);
             cnt++;
@@ -257,13 +284,14 @@ int main(int argc, char* argv[]) {
             // 人の手番
             get_input(WHITE);
             cnt++;
-            print();
             if (is_finished(b)) {
+                print();
                 puts("You Win");
                 exit(0);
             }
 
             if (cnt >= 300) {
+                print();
                 puts("Even");
                 exit(0);
             }
