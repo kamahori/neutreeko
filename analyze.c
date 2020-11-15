@@ -7,8 +7,8 @@ const int BLACK = 1;
 const int WHITE = 2;
 const int MAX_DEPTH = 1e5;
 const int INF = 1e8;
-const int LIST_LEN = 4e6;
-const int COMB_LEN = 2500;
+const int LIST_LEN = 1e8; //4e6;
+const int COMB_LEN = 25000;
 
 /*
    A B C D E
@@ -34,9 +34,6 @@ typedef struct state {
     // 昇順を仮定
 } state;
 
-int scores[1 << 30];
-int next_move[1 << 30];
-
 void printb(unsigned int v) {
     unsigned int mask = (int)1 << (sizeof(v) * CHAR_BIT - 1);
     do putchar(mask & v ? '1' : '0');
@@ -56,39 +53,40 @@ int state_to_int(state s) {
     res |= (s.pos[1] - 'a') << 20;
     res |= (s.pos[2] - 'a') << 15;
     res |= (s.pos[3] - 'a') << 10;
-    res |= (s.pos[4] - 'a') << 5;
-    res |= (s.pos[5] - 'a');
+    res |= (s.pos[4] - 'a') <<  5;
+    res |= (s.pos[5] - 'a') <<  0;
     return res;
 }
 
 state int_to_state(int x) {
     state res;
-    res.pos[0] = ((x >> 25) + 'a') & 31;
-    res.pos[1] = ((x >> 20) + 'a') & 31;
-    res.pos[2] = ((x >> 15) + 'a') & 31;
-    res.pos[3] = ((x >> 10) + 'a') & 31;
-    res.pos[4] = ((x >> 5) + 'a') & 31;
-    res.pos[5] = ((x >> 0) + 'a') & 31;
+    res.pos[0] = ((x >> 25) & 0b11111) + 'a';
+    res.pos[1] = ((x >> 20) & 0b11111) + 'a';
+    res.pos[2] = ((x >> 15) & 0b11111) + 'a';
+    res.pos[3] = ((x >> 10) & 0b11111) + 'a';
+    res.pos[4] = ((x >>  5) & 0b11111) + 'a';
+    res.pos[5] = ((x >>  0) & 0b11111) + 'a';
     return res;
 }
 
 int is_won(int x, int color) {
     if (color == WHITE) return is_won(switch_player(x), BLACK);
-    
-    int board[5][5];
-    board[((x >> 25) & 31) / 5][((x >> 25) & 31) % 5] = BLACK;
-    board[((x >> 20) & 31) / 5][((x >> 20) & 31) % 5] = BLACK;
-    board[((x >> 15) & 31) / 5][((x >> 15) & 31) % 5] = BLACK;
 
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 5; j++) {
-            for (int k = 0; k < 3; k++) {
-                if (board[i][j] == BLACK && board[i][j] == board[i + 1][j] && board[i + 1][j] == board[i + 2][j]) return 1;
-                if (board[j][i] == BLACK && board[j][i] == board[j][i + 1] && board[j][i + 1] == board[j][i + 2]) return 1;
-                if (board[i][k] == BLACK && board[i][k] == board[i + 1][k + 1] && board[i + 1][k + 1] == board[i + 2][k + 2]) return 1;
-                if (board[i + 2][k] == BLACK && board[i + 2][k] == board[i + 1][k + 1] && board[i + 1][k + 1] == board[i][k + 2]) return 1;
-            }
+    int a = (x >> 25) & 0b11111;
+    int b = (x >> 20) & 0b11111;
+    int c = (x >> 15) & 0b11111;
+
+    if (a / 5 == b / 5 && b / 5 == c / 5) {
+        if (a + 1 == b && b + 1 == c) {
+            return 1;
         }
+    }
+
+    if (a + 5 == b && b + 5 == c) return 1;
+
+    if (a / 5 + 1 == b / 5 && b / 5 + 1 == c / 5) {
+        if (a + 6 == b && b + 6 == c) return 1;
+        if (a + 4 == b && b + 4 == c) return 1;
     }
 
     return 0;
@@ -108,36 +106,50 @@ void recursive_comb(int** res, int* positions, int* indexes, int s, int rest, in
 }
 
 int** comb(int* positions) {
+    // recursive_comb とあわせて，25C3または22C3を全列挙する
+    // positions[i] == -1 であるようなiは数えない
     int indexes[3];
     
     int **res = (int**)malloc(sizeof(int*) * COMB_LEN);
     for (int i = 0; i < COMB_LEN; i++) {
         res[i] = (int*)malloc(sizeof(int) * 3);
     }
+
+    for (int i = 0; i < COMB_LEN; i++) {
+        for (int j = 0; j < 3; j++) res[i][j] = 0;
+    }
+
     int iter = 0;
     recursive_comb(res, positions, indexes, 0, 3, &iter);
     return res;
 }
 
 int* get_all_states() {
+    // ありうるすべての状態を列挙
     int* res = (int*)malloc(sizeof(int) * LIST_LEN); // 4e6 > 25C3 * 22C3
+    for (int i = 0; i < LIST_LEN; i++) {
+        res[i] = 0;
+    }
     int positions[25];
     int iter = 0;
 
     for (int i = 0; i < 25; i++) positions[i] = i;
     int** comb1 = comb(positions);
+
     for (int i = 0; i < COMB_LEN; i++) {
         int remain[25];
-        memcpy(remain, positions, sizeof(positions));
+        for (int i = 0; i < 25; i++) remain[i] = i;
         for (int k = 0; k < 3; k++) remain[comb1[i][k]] = -1;
         int** comb2 = comb(remain);
         for (int j = 0; j < COMB_LEN; j++) {
-            int state = (comb1[i][0] << 25) + (comb1[i][1] << 20) + (comb1[i][2] << 15) + (comb2[j][0] << 10) + (comb2[j][1] << 5) + comb2[j][2];
-            if (is_won(state, BLACK) && is_won(state, WHITE)) continue;
+            int state = (comb1[i][0] << 25) | (comb1[i][1] << 20) | (comb1[i][2] << 15) | (comb2[j][0] << 10) | (comb2[j][1] << 5) | comb2[j][2];
+            if (is_won(state, BLACK) && is_won(state, WHITE)) continue; // 両者が同時に勝つような場合は除外
             res[iter] = state;
             iter++;
         }
+        free(comb2);
     }
+    free(comb1);
 
     return res;
 }
@@ -146,7 +158,10 @@ int* get_moves(const int x) {
     // given a certain state, return list of 
     // all valid states after one step by black
     int* res = (int*)malloc(sizeof(int) * 24);
-    int board[5][5];
+    for (int i = 0; i < 24; i++) {
+        res[i] = 0;
+    }
+    int board[5][5] = {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}};
     board[((x >> 25) & 31) / 5][((x >> 25) & 31) % 5] = BLACK;
     board[((x >> 20) & 31) / 5][((x >> 20) & 31) % 5] = BLACK;
     board[((x >> 15) & 31) / 5][((x >> 15) & 31) % 5] = BLACK;
@@ -171,7 +186,7 @@ int* get_moves(const int x) {
                         int mask = ((1 << 30) - 1) - ((1 << (30 - 5 * pawn)) - 1) + ((1 << (25 - 5 * pawn)) - 1);
                         tmp &= mask;
                         res[iter] = tmp | (((a + j * s) * 5 + b + i * s) << (25 - 5 * pawn));
-                    }else{
+                    } else {
                         continue;
                     }
                 }
@@ -184,15 +199,33 @@ int* get_moves(const int x) {
 }
 
 int main() {
+    // int scores[1 << 30];
+    // int next_move[1 << 30];
+    // for (int i = 0; i < (1 << 30); i++) {
+    //     scores[i] = 0;
+    //     next_move[i] = 0;
+    // }
+    // printf("done\n");
+
     int* states = get_all_states();
     int* neutrals = (int*)malloc(sizeof(int) * LIST_LEN);
+    for (int i = 0; i < LIST_LEN; i++) {
+        neutrals[i] = 0;
+    }
+    // neutrals にはその時点で最善手を決められてないものを入れる
     int iter = 0;
     
+    // どちらかが勝っているものをスコア付け
     for (int i = 0; i < LIST_LEN; i++) {
-        if (states[i] == 0) continue; // valid state cannot be 0
-        if (is_won(states[i], BLACK)) scores[i] = MAX_DEPTH;
-        else if (is_won(states[i], WHITE)) scores[i] = -MAX_DEPTH;
-        else {
+        if (states[i] == 0) {
+            continue; // valid state cannot be 0
+        }
+
+        if (is_won(states[i], BLACK)) {
+            scores[i] = MAX_DEPTH;
+        } else if (is_won(states[i], WHITE)) {
+            scores[i] = -MAX_DEPTH;
+        } else {
             neutrals[iter] = states[i];
             iter++;
         }
@@ -200,9 +233,13 @@ int main() {
     
     int prev = -1;
     while (prev != iter) {
+        // これ以上進まなくなるまで，すでにスコア付けされている状態の一手前にスコア付け
         prev = iter;
         iter = 0;
         int* tmp = (int*)malloc(sizeof(int) * LIST_LEN);
+        for (int i = 0; i < LIST_LEN; i++) {
+            tmp[i] = 0;
+        }
         
         for (int i = 0; i < LIST_LEN; i++) {
             if (neutrals[i] == 0) continue;
@@ -232,6 +269,13 @@ int main() {
         memcpy(neutrals, tmp, sizeof(int) * LIST_LEN);
         free(tmp);
     }
+
+    for (int i = 0; i < LIST_LEN; i++) {
+        if (scores[i] != 0) {
+            printf("%d,%d,%d\n", i, scores[i], next_move[i]);
+        }
+    }
+
     free(states);
     free(neutrals);
 }
