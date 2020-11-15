@@ -275,7 +275,7 @@ int main() {
 
             // next_move[neutrals[i]] = best_move;
 
-            printf("%d,%d\n", neutrals[i], best_move);
+            printf("%d,%d,%d\n", neutrals[i], best_move, scores[neutrals[i]]);
         }
 
         neutrals = tmp;

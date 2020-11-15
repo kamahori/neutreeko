@@ -224,10 +224,96 @@ void diff(board b, board b_next) {
     printf("%s\n", res);
 }
 
+int switch_player(const int x) {
+    int y = (x & ((1 << 15) - 1)) << 15;
+    y |= (x >> 15);
+    return y;
+}
+
+int search(int state) {
+    // state に該当する次の動きをファイルから読み込む
+    FILE *fp;
+    int current, next, score;
+    if ((fp = fopen("output.txt", "r")) == NULL) return -1;
+    else {
+        while (fscanf(fp, "%d,%d,%d", &current, &next, &score) == 1) {
+            if (current == state && score > 0) {
+                return next;
+            }
+        }
+    }
+    return -1;
+}
+
 void compute_output(int color) {
     // コンピュータの色がcolor
     // bの値を変化させ、動きをprint
-    board b_next = minimax(b, 3, color);
+    // board b_next = minimax(b, 3, color);
+    int cpu = 0, human = 0;
+    int state = 0;
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 5; j++) {
+            if (b.state[i][j] == color) {
+                state |= ((5 * i + j) << (25 - 5 * cpu));
+                cpu++;
+            } else if (b.state[i][j] == 3 - color) {
+                state |= ((5 * i + j) << (10 - 5 * human));
+                human++;
+            }
+        }
+    }
+    int next = search(state);
+    if (next == -1) {
+        for (int i = 0; i < 3; i++) {
+            int loc = (state >> (25 - 5 * i)) & 0b11111;
+            moveable(b, loc / 5, loc % 5);
+            for (int j = 0; j < 9; j++) {
+                if (answer[j][0] == 100 && answer[j][1] == 100) continue;
+                // (loc/5 loc%5) -> (answer[j][0], answer[j][1])
+                int mask = (1 << 15) - 1;
+                int tmp_state = state & mask;
+                int b[3] = {(state >> 25) & 0b11111, (state >> 20) & 0b11111, (state >> 15) & 0b11111};
+                b[i] = answer[j][0] * 5 + answer[j][1];
+                if (b[1] > b[2]) {
+                    int keep = b[1];
+                    b[1] = b[2];
+                    b[2] = keep;
+                }
+                if (b[0] > b[1]) {
+                    int keep = b[0];
+                    b[0] = b[1];
+                    b[1] = keep;
+                }
+                if (b[1] > b[2]) {
+                    int keep = b[1];
+                    b[1] = b[2];
+                    b[2] = keep;
+                }
+                tmp_state |= (b[0] << 25) | (b[1] << 20) | (b[2] << 15);
+                int candidate = search(tmp_state);
+                if (candidate > 0) {
+                    next = candidate;
+                    break;
+                }
+            }
+            if (next > 0) break;
+        }
+    }
+
+    if (next == -1) {
+        printf("cannot choose next move\n");
+        exit(1);
+    }
+
+    board b_next;
+    for (int i = 0; i < 3; i++) {
+        int loc = (next >> (25 - 5 * i)) & 0b11111;
+        b_next.state[loc / 5][loc % 5] = color;
+    }
+    for (int i = 0; i < 3; i++) {
+        int loc = (next >> (10 - 5 * i)) & 0b11111;
+        b_next.state[loc / 5][loc % 5] = 3 - color;
+    }
     diff(b, b_next);
     b = b_next;
 }
