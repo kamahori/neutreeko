@@ -158,6 +158,7 @@ int* get_moves(const int x) {
     // given a certain state, return list of 
     // all valid states after one step by black
     int* res = (int*)malloc(sizeof(int) * 24);
+    int board[5][5];
     for (int i = 0; i < 24; i++) {
         res[i] = 0;
     }
@@ -169,7 +170,6 @@ int* get_moves(const int x) {
     board[((x >> 5) & 31) / 5][((x >> 5) & 31) % 5] = WHITE;
     board[(x & 31) / 5][(x & 31) % 5] = WHITE;
     int iter = 0;
-
     for (int pawn = 0; pawn < 3; pawn++) {
         int a = ((x >> (25 - 5 * pawn)) & 31) / 5;
         int b = ((x >> (25 - 5 * pawn)) & 31) % 5;
@@ -179,13 +179,41 @@ int* get_moves(const int x) {
                 if (i == 0 && j == 0) continue;
                 for (int s = 1; s < 5; s++) {
                     if (a + j * s < 0 || a + j * s >= 5 || b + i * s < 0 || b + i * s >= 5) continue;
-
                     if (board[a + j * s][b + i * s] == 0) {
                         // (a, b) -> (a + j * s, b + i * s)
-                        int tmp = x;
-                        int mask = ((1 << 30) - 1) - ((1 << (30 - 5 * pawn)) - 1) + ((1 << (25 - 5 * pawn)) - 1);
-                        tmp &= mask;
-                        res[iter] = tmp | (((a + j * s) * 5 + b + i * s) << (25 - 5 * pawn));
+                        int mask = (1 << 15) - 1;
+                        int tmp = x & mask;
+                        int b1 = (x >> 25) & 31;
+                        int b2 = (x >> 20) & 31;
+                        int b3 = (x >> 15) & 31;
+                        if(pawn == 0){
+                            b1 = (a + j * s) * 5 + b + i * s;
+                        }
+                        else if(pawn == 1){
+                            b2 = (a + j * s) * 5 + b + i * s;
+                        }
+                        else {
+                            b3 = (a + j * s) * 5 + b + i * s;
+                        }
+                        //b1、b2、b3を昇順にする
+                        int keep;
+                        if(b2 > b3){
+                            keep = b2;
+                            b2 = b3;
+                            b3 = keep;
+                        }
+                        if(b1 > b2){
+                            keep = b1;
+                            b1 = b2;
+                            b2 = keep;
+                        }
+                        if(b2 > b3){
+                            keep = b2;
+                            b2 = b3;
+                            b3 = keep;
+                        }
+                        res[iter] = tmp | (b1 << 25) | (b2 << 20) | (b3 << 15);
+                    }else{
                     } else {
                         continue;
                     }
@@ -194,7 +222,6 @@ int* get_moves(const int x) {
             }
         }
     }
-
     return res;
 }
 
