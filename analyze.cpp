@@ -140,15 +140,18 @@ std::vector<int> get_all_states() {
     int** comb1 = comb(positions);
 
     for (int i = 0; i < COMB_LEN; i++) {
+        if (comb1[i][2] == 0) continue;
         int remain[25];
         for (int i = 0; i < 25; i++) remain[i] = i;
         for (int k = 0; k < 3; k++) remain[comb1[i][k]] = -1;
         int** comb2 = comb(remain);
         for (int j = 0; j < COMB_LEN; j++) {
+            if (comb2[j][2] == 0) continue;
             int state = (comb1[i][0] << 25) | (comb1[i][1] << 20) | (comb1[i][2] << 15) | (comb2[j][0] << 10) | (comb2[j][1] << 5) | comb2[j][2];
             if (is_won(state, BLACK) && is_won(state, WHITE)) continue; // 両者が同時に勝つような場合は除外
             // res[iter] = state;
             // iter++;
+            printf("%d\n", state);
             res.push_back(state);
         }
         free(comb2);
@@ -214,6 +217,7 @@ int main() {
     // printf("done\n");
 
     std::vector<int> states = get_all_states();
+    exit(0);
     std::vector<int> neutrals;
     // int* states = get_all_states();
     // int* neutrals = (int*)malloc(sizeof(int) * LIST_LEN);
@@ -240,10 +244,11 @@ int main() {
     }
     
     int prev = -1;
-    while (prev != iter) {
+    while (prev != neutrals.size()) {
         // これ以上進まなくなるまで，すでにスコア付けされている状態の一手前にスコア付け
-        prev = iter;
-        iter = 0;
+        prev = neutrals.size();
+        printf("while\n");
+        // iter = 0;
         // int* tmp = (int*)malloc(sizeof(int) * LIST_LEN);
         // for (int i = 0; i < LIST_LEN; i++) {
         //     tmp[i] = 0;
@@ -257,6 +262,10 @@ int main() {
             int* moves = get_moves(neutrals[i]);
             for (int j = 0; j < 24; j++) {
                 if (moves[j] == 0) continue;
+                // if (scores[moves[j]] < min) {
+                //     min = scores[moves[j]];
+                //     best_move = moves[j];
+                // }
                 int opposite = switch_player(moves[j]);
                 if (scores[opposite] < min) {
                     min = scores[opposite];
@@ -266,7 +275,7 @@ int main() {
             if (min == 0) {
                 // tmp[iter] = neutrals[i];
                 tmp.push_back(neutrals[i]);
-                iter++;
+                // iter++;
                 continue;
             }
 
@@ -275,7 +284,7 @@ int main() {
 
             // next_move[neutrals[i]] = best_move;
 
-            printf("%d,%d,%d\n", neutrals[i], best_move, scores[neutrals[i]]);
+            // printf("%d,%d,%d\n", neutrals[i], best_move, scores[neutrals[i]]);
         }
 
         neutrals = tmp;
