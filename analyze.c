@@ -158,7 +158,6 @@ int* get_moves(const int x) {
     // given a certain state, return list of 
     // all valid states after one step by black
     int* res = (int*)malloc(sizeof(int) * 24);
-    int board[5][5];
     for (int i = 0; i < 24; i++) {
         res[i] = 0;
     }
@@ -213,7 +212,6 @@ int* get_moves(const int x) {
                             b3 = keep;
                         }
                         res[iter] = tmp | (b1 << 25) | (b2 << 20) | (b3 << 15);
-                    }else{
                     } else {
                         continue;
                     }
