@@ -396,7 +396,7 @@ int is_won(int x, int color) {
     return 0;
 }
 
-int search(int state) {
+int search(int state, int mode) {
     // state に該当する次の動きをファイルから読み込む
     FILE *fp;
     int tmp = equiv(state);
@@ -408,9 +408,12 @@ int search(int state) {
         while (fscanf(fp, "%d,%d,%d", &current, &next, &score) != EOF) {
             if (current == tmp && score > 0) {
                 return equiv(next);
+                // if (mode == 1) return equiv(next);
+                // if (mode == 0) return -1;
             }
         }
     }
+    // if (mode == 0) return 1;
     return -1;
 }
 
@@ -433,7 +436,7 @@ void compute_output(int color) {
     }
     // if (color == WHITE) state = switch_player(state);
     state = equiv(state);
-    int next = search(state);
+    int next = search(state, 1);
 
     board b_tmp;
     for (int i = 0; i < 5; i++) for (int j = 0; j < 5; j++) b_tmp.state[i][j] = 0;
@@ -461,16 +464,17 @@ void compute_output(int color) {
                 B[i] = answer[j][0] * 5 + answer[j][1];
                 tmp_state |= (B[0] << 25) | (B[1] << 20) | (B[2] << 15);
                 tmp_state = equiv(tmp_state);
-                int candidate = search(tmp_state);
-                if (candidate > 0) {
-                    next = tmp_state;
+                tmp_state = switch_player(tmp_state);
+                int candidate = search(tmp_state, 0);
+                if (candidate < 0) {
+                    next = switch_player(tmp_state);
                     if (DEBUG == 1) printf("fine\n");
                     isfound = 1;
                     break;
                 }
-                if (!is_won(tmp_state, WHITE)) {
-                    next = tmp_state;
-                }
+                // if (!is_won(tmp_state, WHITE)) {
+                //     next = tmp_state;
+                // }
             }
             if (isfound) break;
         }
