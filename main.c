@@ -2,47 +2,49 @@
 #include <stdlib.h>
 #include <string.h>
 
-int answer[8][2];
-int BLACK = 1;
-int WHITE = 2;
+const int BLACK = 1;
+const int WHITE = 2;
 int DEBUG = 0;
+int answer[8][2];
 
-//boardは盤面の状態stateと盤面の点数pointを保持する構造体
+// situation of the game is stored in `board` or int
+// `board` holds the state of the whole board
 typedef struct board {
     int state[5][5];
-    int point;
+    // 0: empty
+    // 1: black (first player)
+    // 2: white (second player)
 } board;
 
-typedef struct move {
-    //(x1, y1)から(x2, y2)への遷移
-    int x1;
-    int y1;
-    int x2;
-    int y2;
-} move;
+board g_board;
+// global varibale to contain current state
 
-typedef struct next_board{
-    move travel[24];
-} next_board;
-
-board b;
-
-void init() { //初期化関数
+void init() {
+    // initialize
     int x, y;
-    for (x = 0; x < 5; x++) { //基本全部空
+    for (x = 0; x < 5; x++) {
         for (y = 0; y < 5; y++) {
-            b.state[x][y] = 0;
+            g_board.state[x][y] = 0;
         }
     }
-    b.state[0][1] = BLACK; //B1には黒
-    b.state[0][3] = BLACK; //D1には黒
-    b.state[3][2] = BLACK; //C4には黒
-    b.state[4][1] = WHITE; //B5には白
-    b.state[4][3] = WHITE; //D5には白
-    b.state[1][2] = WHITE; //C2には白
+    g_board.state[0][1] = BLACK;
+    g_board.state[0][3] = BLACK;
+    g_board.state[3][2] = BLACK;
+    g_board.state[4][1] = WHITE;
+    g_board.state[4][3] = WHITE;
+    g_board.state[1][2] = WHITE;
+
+    //    A B C D E
+    //   ----------
+    // 5| 0 2 0 2 0 
+    // 4| 0 0 1 0 0 
+    // 3| 0 0 0 0 0 
+    // 2| 0 0 2 0 0 
+    // 1| 0 1 0 1 0
 }
 
 void print(void) {
+    // print current board if debug mode is on
     if (DEBUG == 0) return;
 
     printf("   A B C D E\n");
@@ -50,7 +52,7 @@ void print(void) {
     for (int i = 0; i < 5; i++) {
         printf("%d| ", 5 - i);
         for (int j = 0; j < 5; j++) {
-            printf("%d ", b.state[4 - i][j]);
+            printf("%d ", g_board.state[4 - i][j]);
         }
         printf("\n");
     }
@@ -58,53 +60,66 @@ void print(void) {
 }
 
 int is_finished(board b) {
+    // judge if the game is finished or not
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 5; j++) {
             for (int k = 0; k < 3; k++) {
-                if (b.state[i][j] != 0 && b.state[i][j] == b.state[i + 1][j] && b.state[i + 1][j] == b.state[i + 2][j]) return 1;
-                if (b.state[j][i] != 0 && b.state[j][i] == b.state[j][i + 1] && b.state[j][i + 1] == b.state[j][i + 2]) return 1;
-                if (b.state[i][k] != 0 && b.state[i][k] == b.state[i + 1][k + 1] && b.state[i + 1][k + 1] == b.state[i + 2][k + 2]) return 1;
-                if (b.state[i + 2][k] != 0 && b.state[i + 2][k] == b.state[i + 1][k + 1] && b.state[i + 1][k + 1] == b.state[i][k + 2]) return 1;
+                if (b.state[i][j] != 0 &&
+                    b.state[i][j] == b.state[i + 1][j] && 
+                    b.state[i + 1][j] == b.state[i + 2][j]) return 1;
+                if (b.state[j][i] != 0 && 
+                    b.state[j][i] == b.state[j][i + 1] && 
+                    b.state[j][i + 1] == b.state[j][i + 2]) return 1;
+                if (b.state[i][k] != 0 && 
+                    b.state[i][k] == b.state[i + 1][k + 1] && 
+                    b.state[i + 1][k + 1] == b.state[i + 2][k + 2]) return 1;
+                if (b.state[i + 2][k] != 0 && 
+                    b.state[i + 2][k] == b.state[i + 1][k + 1] && 
+                    b.state[i + 1][k + 1] == b.state[i][k + 2]) return 1;
             }
         }
     }
     return 0;
 }
 
-void moveable(board B, int y, int x) {
-    //座標を受け取って動ける場所を列挙する関数
-    //answerに動ける場所全てが格納される 
-    int i;
-    for (i = 0; i < 8; i++) { //answerの初期化
+void moveable(board b, int y, int x) {
+    // given a board and coordinate, compute all the locations
+    // that the pawn on (y, x) can move to.
+    // output is stored in global variable `answer`
+    for (int i = 0; i < 8; i++) {
+        // initialize answer
         answer[i][0] = 100;
         answer[i][1] = 100;
     }
 
-    int j, s, k;
-    k = 0;
-    for (i = -1; i <= 1; i++) {
-        for (j = -1; j <= 1; j++) { //全方位探索
+    int iter;
+    iter = 0;
+    for (int i = -1; i <= 1; i++) {
+        for (int j = -1; j <= 1; j++) {
+            // i and j are for direction
             if (i == 0 && j == 0) {
                 continue;
             }
-            for (s = 1; s < 5; s++) { //その方位でどこまで行けるか
+            for (int s = 1; s < 5; s++) {
+                // s is for distance
                 if (y + j * s < 0 || y + j * s >= 5 || x + i * s < 0 || x + i * s >= 5) {
                     break;
                 }
-                if (B.state[y + j * s][x + i * s] == 0) { //進んだ先のマスが空なら
-                    answer[k][0] = y + j * s; //answerのi+j-2（方角のパラメータ）にそのマスを書き込む
-                    answer[k][1] = x + i * s;
+                if (b.state[y + j * s][x + i * s] == 0) {
+                    // if destination is empty
+                    answer[iter][0] = y + j * s;
+                    answer[iter][1] = x + i * s;
                 } else {
                     break;
                 }
             }
-            k++;
+            iter++;
         }
     }
-
 }
 
 int is_valid_move(char* input) {
+    // judge if the input is given properly
     if (input[0] < '1' || input[0] > '5') return 0;
     if (input[1] < 'A' || input[1] > 'E') return 0;
     if (input[2] < '1' || input[2] > '5') return 0;
@@ -112,115 +127,61 @@ int is_valid_move(char* input) {
     return 1;
 }
 
-void get_input(int color) { //石を動かす関数
+void get_input(int color) {
+    // move pawns according to the input
     char input[5];
-    int y, x, w, z, i;
+    int y, x, w, z;
 
-    scanf("%s", input); //入力"4E2C"などを受け取って
+    scanf("%s", input);
 
-    y = input[0] - '1'; //ASCIIコードを座標に変換
+    // transform input to numbers
+    y = input[0] - '1';
     x = input[1] - 'A';
     w = input[2] - '1';
     z = input[3] - 'A';
 
-    if (!is_valid_move(input) || b.state[y][x] != color) {
-        puts("Error: illegal");
+    if (!is_valid_move(input) || g_board.state[y][x] != color) {
+        printf("Error: illegal input\n");
         exit(1);
     }
 
-    moveable(b, y, x);
+    moveable(g_board, y, x);
 
-    for (i = 0; i < 8; i++) {
-        if (answer[i][0] == w && answer[i][1] == z) { //石が移動できるなら
-            b.state[y][x] = 0; //元いた場所を空にして
-            b.state[w][z] = color; //移動する
+    for (int i = 0; i < 8; i++) {
+        if (answer[i][0] == w && answer[i][1] == z) {
+            // if the pawn on (y, x) can move to (w, z)
+            g_board.state[y][x] = 0;
+            g_board.state[w][z] = color;
             return;
         }
     }
 
-    // 移動できない場合
-    puts("Error: cannot move");
+    // if the pawn cannot move
+    printf("Error: cannot move\n");
     exit(1);
 }
 
-board minimax(board x, int depth, int color) {
-    if (depth == 0) {
-        x.point = 0;
-        return x;
-    }
-    int i, j, k;
-    int count = 0;
-    next_board next;
-
-    //盤面から可能な遷移をnextにいれる。
-    for (i = 0; i < 5; i++) {
-        for (j = 0; j < 5; j++) {
-            if (x.state[i][j] == color) {
-
-                moveable(x, i, j);
-
-                for (k = 0; k < 8; k++) {
-                    if (answer[k][0] != 100) {
-                        next.travel[count].x1 = i;
-                        next.travel[count].y1 = j;
-                        next.travel[count].x2 = answer[k][0];
-                        next.travel[count].y2 = answer[k][1];
-                        count++;
-                    }
-                }
-            }
-        }
-    }
-    board ans;
-    for (i = 0; i < count; i++) {
-        board y = x;
-        //遷移前のマスを0に、遷移先のマスをcolorに
-        y.state[next.travel[i].x1][next.travel[i].y1] = 0;
-        y.state[next.travel[i].x2][next.travel[i].y2] = color;
-
-        if (is_finished(y)) {
-            y.point = 100;
-            return y;
-        }
-        board z = minimax(y, depth - 1, 3 - color);
-        if (i == 0) {
-            ans = y;
-            continue;
-        }
-        if (depth % 2 == 1) {
-            if (z.point > ans.point) {
-                ans = y;
-            }
-        } else {
-            if (z.point < ans.point) {
-                ans = y;
-            }
-        }
-    }
-    ans.point -= 1;
-    return ans;
-}
-
 int sort_state(const int state) {
+    // make state in int increasing order
     int res = 0;
 
-    int B[3] = {(state >> 25) & 0b11111, (state >> 20) & 0b11111, (state >> 15) & 0b11111};
+    int b[3] = {(state >> 25) & 0b11111, (state >> 20) & 0b11111, (state >> 15) & 0b11111};
     int w[3] = {(state >> 10) & 0b11111, (state >>  5) & 0b11111, (state >>  0) & 0b11111};
     
-    if (B[1] > B[2]) {
-        int keep = B[1];
-        B[1] = B[2];
-        B[2] = keep;
+    if (b[1] > b[2]) {
+        int keep = b[1];
+        b[1] = b[2];
+        b[2] = keep;
     }
-    if (B[0] > B[1]) {
-        int keep = B[0];
-        B[0] = B[1];
-        B[1] = keep;
+    if (b[0] > b[1]) {
+        int keep = b[0];
+        b[0] = b[1];
+        b[1] = keep;
     }
-    if (B[1] > B[2]) {
-        int keep = B[1];
-        B[1] = B[2];
-        B[2] = keep;
+    if (b[1] > b[2]) {
+        int keep = b[1];
+        b[1] = b[2];
+        b[2] = keep;
     }
 
     if (w[1] > w[2]) {
@@ -239,12 +200,13 @@ int sort_state(const int state) {
         w[2] = keep;
     }
 
-    res = (B[0] << 25) | (B[1] << 20) | (B[2] << 15) | (w[0] << 10) | (w[1] << 5) | w[2];
+    res = (b[0] << 25) | (b[1] << 20) | (b[2] << 15) | (w[0] << 10) | (w[1] << 5) | w[2];
     
     return res;
 }
 
 int mirror(const int state) {
+    // flip the current board horizontally given state in int
     int res = 0;
     for (int i = 0; i < 6; i++) {
         int tmp = (state >> (25 - i * 5)) & 0b11111;
@@ -255,6 +217,7 @@ int mirror(const int state) {
 }
 
 board mirror_board(board B) {
+    // flip the current board horizontally given state in `board`
     for (int i = 0; i < 5; i++) {
         for (int j = 0; j < 2; j++) {
             int tmp = B.state[i][j];
@@ -266,6 +229,7 @@ board mirror_board(board B) {
 }
 
 int rotate(const int state) {
+    // rotate the current board given state in int
     int res = 0;
     for (int i = 0; i < 6; i++) {
         int tmp = (state >> (25 - i * 5)) & 0b11111;
@@ -277,6 +241,7 @@ int rotate(const int state) {
 }
 
 board rotate_board(board B) {
+    // rotate the current board given state in `board`
     board res;
     for (int i = 0; i < 5; i++) for (int j = 0; j < 5; j++) res.state[i][j] = 0;
     for (int i = 0; i < 5; i++) {
@@ -288,6 +253,8 @@ board rotate_board(board B) {
 }
 
 int equiv(const int state) {
+    // only consider one situation out of 8 equivalent situations
+    // that can be reached by mirroring or rotation
     int res = sort_state(state);
     int tmp = state;
 
@@ -315,6 +282,7 @@ int equiv(const int state) {
 }
 
 int distance(board x, board y) {
+    // compute how many states of x and y are different
     int res = 0;
     for (int i = 0; i < 5; i++) {
         for (int j = 0; j < 5; j++) {
@@ -324,12 +292,12 @@ int distance(board x, board y) {
     return res;
 }
 
-void print_diff(board B, board b_next) {
-    // b -> b_nextで変化したところを出力する
+void print_diff(board b, board b_next) {
+    // print the movement from b to b_next
     char res[4];
     for (int i = 0; i < 5; i++) {
         for (int j = 0; j < 5; j++) {
-            if (B.state[i][j] == b_next.state[i][j]) continue;
+            if (b.state[i][j] == b_next.state[i][j]) continue;
             if (b_next.state[i][j] == 0) {
                 res[0] = '1' + i;
                 res[1] = 'A' + j;
@@ -340,10 +308,12 @@ void print_diff(board B, board b_next) {
         }
     }
     printf("%c%c%c%c\n", res[0], res[1], res[2], res[3]);
-    b = b_next;
+    g_board = b_next;
 }
 
 void diff(board b, board b_next) {
+    // compute the movement from b to b_next
+    // `b_next` can be whatever situation (rotation, mirroring) out of 8 equivalent ones
     if (distance(b, b_next) == 2) return print_diff(b, b_next);
 
     b_next = mirror_board(b_next);
@@ -368,75 +338,48 @@ void diff(board b, board b_next) {
 }
 
 int switch_player(const int x) {
+    // change first and second players given state in int
     int y = (x & ((1 << 15) - 1)) << 15;
     y |= (x >> 15);
     return equiv(y);
 }
 
-int is_won(int x, int color) {
-    if (color == WHITE) return is_won(switch_player(x), BLACK);
-
-    int a = (x >> 25) & 0b11111;
-    int b = (x >> 20) & 0b11111;
-    int c = (x >> 15) & 0b11111;
-
-    if (a / 5 == b / 5 && b / 5 == c / 5) {
-        if (a + 1 == b && b + 1 == c) {
-            return 1;
-        }
-    }
-
-    if (a + 5 == b && b + 5 == c) return 1;
-
-    if (a / 5 + 1 == b / 5 && b / 5 + 1 == c / 5) {
-        if (a + 6 == b && b + 6 == c) return 1;
-        if (a + 4 == b && b + 4 == c) return 1;
-    }
-
-    return 0;
-}
-
-int search(int state, int mode) {
-    // state に該当する次の動きをファイルから読み込む
+int search(int state) {
+    // search the movement that corresponds to `state` from 'output.txt'
     FILE *fp;
     int tmp = equiv(state);
     int current, next, score;
     if ((fp = fopen("output.txt", "r")) == NULL) {
         printf("cannot read file\n");
-        return -1;
+        exit(1);
     } else {
         while (fscanf(fp, "%d,%d,%d", &current, &next, &score) != EOF) {
             if (current == tmp && score > 0) {
                 return equiv(next);
-                // if (mode == 1) return equiv(next);
-                // if (mode == 0) return -1;
             }
         }
     }
-    // if (mode == 0) return 1;
     return -1;
 }
 
 void compute_output(int color) {
-    // コンピュータの色がcolor
-    // bの値を変化させ、動きをprint
-    // board b_next = minimax(b, 3, color);
+    // calculate the computer's movement
+    // `color` is 1 (black) or 2 (white)
     int cpu = 0, human = 0;
     int state = 0;
     for (int i = 0; i < 5; i++) {
         for (int j = 0; j < 5; j++) {
-            if (b.state[i][j] == color) {
+            if (g_board.state[i][j] == color) {
                 state |= ((5 * i + j) << (25 - 5 * cpu));
                 cpu++;
-            } else if (b.state[i][j] == 3 - color) {
+            } else if (g_board.state[i][j] == 3 - color) {
                 state |= ((5 * i + j) << (10 - 5 * human));
                 human++;
             }
         }
     }
-    // if (color == WHITE) state = switch_player(state);
     state = equiv(state);
-    int next = search(state, 1);
+    int next = search(state);
 
     board b_tmp;
     for (int i = 0; i < 5; i++) for (int j = 0; j < 5; j++) b_tmp.state[i][j] = 0;
@@ -457,31 +400,23 @@ void compute_output(int color) {
             moveable(b_tmp, loc / 5, loc % 5);
             for (int j = 0; j < 8; j++) {
                 if (answer[j][0] == 100 && answer[j][1] == 100) continue;
-                // (loc/5 loc%5) -> (answer[j][0], answer[j][1])
+                // move from (loc / 5,  loc % 5) to (answer[j][0], answer[j][1])
                 int mask = (1 << 15) - 1;
                 int tmp_state = state & mask;
-                int B[3] = {(state >> 25) & 0b11111, (state >> 20) & 0b11111, (state >> 15) & 0b11111};
-                B[i] = answer[j][0] * 5 + answer[j][1];
-                tmp_state |= (B[0] << 25) | (B[1] << 20) | (B[2] << 15);
+                int b[3] = {(state >> 25) & 0b11111, (state >> 20) & 0b11111, (state >> 15) & 0b11111};
+                b[i] = answer[j][0] * 5 + answer[j][1];
+                tmp_state |= (b[0] << 25) | (b[1] << 20) | (b[2] << 15);
                 tmp_state = equiv(tmp_state);
                 tmp_state = switch_player(tmp_state);
-                int candidate = search(tmp_state, 0);
-                if (candidate < 0) {
+                if (search(tmp_state) < 0) {
                     next = switch_player(tmp_state);
-                    if (DEBUG == 1) printf("fine\n");
                     isfound = 1;
                     break;
                 }
-                // if (!is_won(tmp_state, WHITE)) {
-                //     next = tmp_state;
-                // }
             }
             if (isfound) break;
         }
-    } else {
-        if (DEBUG == 1) printf("FINE\n");
     }
-    // if (color == WHITE) state = switch_player(state);
 
     if (next == -1) {
         printf("cannot choose next move\n");
@@ -499,8 +434,8 @@ void compute_output(int color) {
         int loc = (next >> (10 - 5 * i)) & 0b11111;
         b_next.state[loc / 5][loc % 5] = 3 - color;
     }
-    diff(b, b_next);
-    // b = b_next;
+
+    diff(g_board, b_next);
 }
 
 int main(int argc, char* argv[]) {
@@ -510,58 +445,60 @@ int main(int argc, char* argv[]) {
     if (argc >= 3 && !strcmp(argv[2], "1")) DEBUG = 1;
 
     if (!strcmp(argv[1], "0")) {
-        // 人が先手(黒)
+        // human plays first (black)
         while (1) {
             print();
-            // 人の手番
+            // human's turn
             get_input(BLACK);
             cnt++;
             print();
-            if (is_finished(b)) {
-                puts("You Win");
+            if (is_finished(g_board)) {
+                printf("You Win\n");
                 exit(0);
             }
 
-            // CPUの手番
+            // computer's turn
             compute_output(WHITE);
             cnt++;
-            if (is_finished(b)) {
+            if (is_finished(g_board)) {
                 print();
-                puts("You Lose");
+                printf("You Lose\n");
                 exit(0);
             }
 
             if (cnt >= 300) {
+                // stop after 300 turns
                 print();
-                puts("Even");
+                printf("Even\n");
                 exit(0);
             }
         }
     } else {
-        // コンピュータが先手(黒)
+        // computer plays first (black)
         while (1) {
             print();
-            // CPUの手番
+            // computer's turn
             compute_output(BLACK);
             cnt++;
             print();
-            if (is_finished(b)) {
-                puts("You Lose");
+            if (is_finished(g_board)) {
+                printf("You Lose\n");
                 exit(0);
             }
 
-            // 人の手番
+            // human's turn
             get_input(WHITE);
             cnt++;
-            if (is_finished(b)) {
+            if (is_finished(g_board)) {
                 print();
-                puts("You Win");
+                printf("You Win\n");
                 exit(0);
             }
 
             if (cnt >= 300) {
+                // stop after 300 turns
                 print();
-                puts("Even");
+                printf("Even\n");
                 exit(0);
             }
         }
