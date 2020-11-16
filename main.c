@@ -224,20 +224,139 @@ void diff(board b, board b_next) {
     printf("%s\n", res);
 }
 
+int sort_state(const int state) {
+    int res = 0;
+
+    int b[3] = {(state >> 25) & 0b11111, (state >> 20) & 0b11111, (state >> 15) & 0b11111};
+    int w[3] = {(state >> 10) & 0b11111, (state >>  5) & 0b11111, (state >>  0) & 0b11111};
+    
+    if (b[1] > b[2]) {
+        int keep = b[1];
+        b[1] = b[2];
+        b[2] = keep;
+    }
+    if (b[0] > b[1]) {
+        int keep = b[0];
+        b[0] = b[1];
+        b[1] = keep;
+    }
+    if (b[1] > b[2]) {
+        int keep = b[1];
+        b[1] = b[2];
+        b[2] = keep;
+    }
+
+    if (w[1] > w[2]) {
+        int keep = w[1];
+        w[1] = w[2];
+        w[2] = keep;
+    }
+    if (w[0] > w[1]) {
+        int keep = w[0];
+        w[0] = w[1];
+        w[1] = keep;
+    }
+    if (w[1] > w[2]) {
+        int keep = w[1];
+        w[1] = w[2];
+        w[2] = keep;
+    }
+
+    res = (b[0] << 25) | (b[1] << 20) | (b[2] << 15) | (w[0] << 10) | (w[1] << 5) | w[2];
+    
+    return res;
+}
+
+int mirror(const int state) {
+    int res = 0;
+    for (int i = 0; i < 6; i++) {
+        int tmp = (state >> (25 - i * 5)) & 0b11111;
+        tmp = 5 * (tmp / 5) + 4 - (tmp % 5);
+        res |= tmp << (25 - i * 5);
+    }
+    return res;
+}
+
+int rotate(const int state) {
+    int res = 0;
+    for (int i = 0; i < 6; i++) {
+        int tmp = (state >> (25 - i * 5)) & 0b11111;
+        int x = tmp % 5, y = tmp / 5;
+        tmp = x * 5 + y;
+        res |= tmp << (25 - i * 5);
+    }
+    return res;
+}
+
+int transformation = -1;
+
+int equiv(const int state) {
+    int res = sort_state(state);
+    int tmp = state;
+
+    tmp = mirror(tmp);
+    if (res > sort_state(tmp)) res = sort_state(tmp);
+    tmp = rotate(tmp);
+    if (res > sort_state(tmp)) res = sort_state(tmp);
+
+    tmp = mirror(tmp);
+    if (res > sort_state(tmp)) res = sort_state(tmp);
+    tmp = rotate(tmp);
+    if (res > sort_state(tmp)) res = sort_state(tmp);
+
+    tmp = mirror(tmp);
+    if (res > sort_state(tmp)) res = sort_state(tmp);
+    tmp = rotate(tmp);
+    if (res > sort_state(tmp)) res = sort_state(tmp);
+
+    tmp = mirror(tmp);
+    if (res > sort_state(tmp)) res = sort_state(tmp);
+    tmp = rotate(tmp);
+    if (res > sort_state(tmp)) res = sort_state(tmp);
+
+    return res;
+}
+
 int switch_player(const int x) {
     int y = (x & ((1 << 15) - 1)) << 15;
     y |= (x >> 15);
-    return y;
+    return equiv(y);
+}
+
+int is_won(int x, int color) {
+    if (color == WHITE) return is_won(switch_player(x), BLACK);
+
+    int a = (x >> 25) & 0b11111;
+    int b = (x >> 20) & 0b11111;
+    int c = (x >> 15) & 0b11111;
+
+    if (a / 5 == b / 5 && b / 5 == c / 5) {
+        if (a + 1 == b && b + 1 == c) {
+            return 1;
+        }
+    }
+
+    if (a + 5 == b && b + 5 == c) return 1;
+
+    if (a / 5 + 1 == b / 5 && b / 5 + 1 == c / 5) {
+        if (a + 6 == b && b + 6 == c) return 1;
+        if (a + 4 == b && b + 4 == c) return 1;
+    }
+
+    return 0;
 }
 
 int search(int state) {
     // state に該当する次の動きをファイルから読み込む
     FILE *fp;
+    int tmp = equiv(state);
     int current, next, score;
-    if ((fp = fopen("output.txt", "r")) == NULL) return -1;
-    else {
+    if ((fp = fopen("output.txt", "r")) == NULL) {
+        printf("cannot read file\n");
+        return -1;
+    } else {
         while (fscanf(fp, "%d,%d,%d", &current, &next, &score) == 1) {
-            if (current == state && score > 0) {
+            if (current == tmp && score > 0) {
                 return next;
             }
         }
@@ -262,6 +381,7 @@ void compute_output(int color) {
             }
         }
     }
+    // if (color == WHITE) state = switch_player(state);
     int next = search(state);
     if (next == -1) {
         for (int i = 0; i < 3; i++) {
@@ -290,15 +410,20 @@ void compute_output(int color) {
                     b[2] = keep;
                 }
                 tmp_state |= (b[0] << 25) | (b[1] << 20) | (b[2] << 15);
+                tmp_state = equiv(tmp_state);
                 int candidate = search(tmp_state);
                 if (candidate > 0) {
-                    next = candidate;
+                    next = tmp_state;
                     break;
                 }
+                if (!is_won(tmp_state, WHITE)) {
+                    next = tmp_state;
+                }
             }
-            if (next > 0) break;
+            // if (next > 0) break;
         }
     }
+    // if (color == WHITE) state = switch_player(state);
 
     if (next == -1) {
         printf("cannot choose next move\n");
@@ -306,6 +431,8 @@ void compute_output(int color) {
     }
 
     board b_next;
+    for (int i = 0; i < 5; i++) for (int j = 0; j < 5; j++) b_next.state[i][j] = 0;
+
     for (int i = 0; i < 3; i++) {
         int loc = (next >> (25 - 5 * i)) & 0b11111;
         b_next.state[loc / 5][loc % 5] = color;
@@ -314,7 +441,7 @@ void compute_output(int color) {
         int loc = (next >> (10 - 5 * i)) & 0b11111;
         b_next.state[loc / 5][loc % 5] = 3 - color;
     }
-    diff(b, b_next);
+    // diff(b, b_next);
     b = b_next;
 }
 

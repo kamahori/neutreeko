@@ -43,12 +43,6 @@ void printb(unsigned int v) {
     printf("\n");
 }
 
-int switch_player(const int x) {
-    int y = (x & ((1 << 15) - 1)) << 15;
-    y |= (x >> 15);
-    return y;
-}
-
 int state_to_int(state s) {
     int res = 0;
     res |= (s.pos[0] - 'a') << 25;
@@ -58,6 +52,103 @@ int state_to_int(state s) {
     res |= (s.pos[4] - 'a') <<  5;
     res |= (s.pos[5] - 'a') <<  0;
     return res;
+}
+
+int sort_state(const int state) {
+    int res = 0;
+
+    int b[3] = {(state >> 25) & 0b11111, (state >> 20) & 0b11111, (state >> 15) & 0b11111};
+    int w[3] = {(state >> 10) & 0b11111, (state >>  5) & 0b11111, (state >>  0) & 0b11111};
+    
+    if (b[1] > b[2]) {
+        int keep = b[1];
+        b[1] = b[2];
+        b[2] = keep;
+    }
+    if (b[0] > b[1]) {
+        int keep = b[0];
+        b[0] = b[1];
+        b[1] = keep;
+    }
+    if (b[1] > b[2]) {
+        int keep = b[1];
+        b[1] = b[2];
+        b[2] = keep;
+    }
+
+    if (w[1] > w[2]) {
+        int keep = w[1];
+        w[1] = w[2];
+        w[2] = keep;
+    }
+    if (w[0] > w[1]) {
+        int keep = w[0];
+        w[0] = w[1];
+        w[1] = keep;
+    }
+    if (w[1] > w[2]) {
+        int keep = w[1];
+        w[1] = w[2];
+        w[2] = keep;
+    }
+
+    res = (b[0] << 25) | (b[1] << 20) | (b[2] << 15) | (w[0] << 10) | (w[1] << 5) | w[2];
+    
+    return res;
+}
+
+int mirror(const int state) {
+    int res = 0;
+    for (int i = 0; i < 6; i++) {
+        int tmp = (state >> (25 - i * 5)) & 0b11111;
+        tmp = 5 * (tmp / 5) + 4 - (tmp % 5);
+        res |= tmp << (25 - i * 5);
+    }
+    return res;
+}
+
+int rotate(const int state) {
+    int res = 0;
+    for (int i = 0; i < 6; i++) {
+        int tmp = (state >> (25 - i * 5)) & 0b11111;
+        int x = tmp % 5, y = tmp / 5;
+        tmp = x * 5 + y;
+        res |= tmp << (25 - i * 5);
+    }
+    return res;
+}
+
+int equiv(const int state) {
+    int res = sort_state(state);
+    int tmp = state;
+
+    tmp = mirror(tmp);
+    if (res > sort_state(tmp)) res = sort_state(tmp);
+    tmp = rotate(tmp);
+    if (res > sort_state(tmp)) res = sort_state(tmp);
+
+    tmp = mirror(tmp);
+    if (res > sort_state(tmp)) res = sort_state(tmp);
+    tmp = rotate(tmp);
+    if (res > sort_state(tmp)) res = sort_state(tmp);
+
+    tmp = mirror(tmp);
+    if (res > sort_state(tmp)) res = sort_state(tmp);
+    tmp = rotate(tmp);
+    if (res > sort_state(tmp)) res = sort_state(tmp);
+
+    tmp = mirror(tmp);
+    if (res > sort_state(tmp)) res = sort_state(tmp);
+    tmp = rotate(tmp);
+    if (res > sort_state(tmp)) res = sort_state(tmp);
+
+    return res;
+}
+
+int switch_player(const int x) {
+    int y = (x & ((1 << 15) - 1)) << 15;
+    y |= (x >> 15);
+    return equiv(y);
 }
 
 state int_to_state(int x) {
@@ -148,10 +239,11 @@ std::vector<int> get_all_states() {
         for (int j = 0; j < COMB_LEN; j++) {
             if (comb2[j][2] == 0) continue;
             int state = (comb1[i][0] << 25) | (comb1[i][1] << 20) | (comb1[i][2] << 15) | (comb2[j][0] << 10) | (comb2[j][1] << 5) | comb2[j][2];
+            if (state != equiv(state)) continue;
             if (is_won(state, BLACK) && is_won(state, WHITE)) continue; // 両者が同時に勝つような場合は除外
             // res[iter] = state;
             // iter++;
-            printf("%d\n", state);
+            // printf("%d\n", state);
             res.push_back(state);
         }
         free(comb2);
@@ -182,7 +274,7 @@ int* get_moves(const int x) {
         int b = ((x >> (25 - 5 * pawn)) & 31) % 5;
         for (int i = -1; i <= 1; i++) {
             for (int j = -1; j <= 1; j++) {
-                res[iter] = -1;
+                // res[iter] = -1;
                 if (i == 0 && j == 0) continue;
                 for (int s = 1; s < 5; s++) {
                     if (a + j * s < 0 || a + j * s >= 5 || b + i * s < 0 || b + i * s >= 5) continue;
@@ -192,7 +284,8 @@ int* get_moves(const int x) {
                         int tmp = x;
                         int mask = ((1 << 30) - 1) - ((1 << (30 - 5 * pawn)) - 1) + ((1 << (25 - 5 * pawn)) - 1);
                         tmp &= mask;
-                        res[iter] = tmp | (((a + j * s) * 5 + b + i * s) << (25 - 5 * pawn));
+                        tmp |= (((a + j * s) * 5 + b + i * s) << (25 - 5 * pawn));
+                        res[iter] = equiv(tmp);
                     } else {
                         continue;
                     }
@@ -217,7 +310,6 @@ int main() {
     // printf("done\n");
 
     std::vector<int> states = get_all_states();
-    exit(0);
     std::vector<int> neutrals;
     // int* states = get_all_states();
     // int* neutrals = (int*)malloc(sizeof(int) * LIST_LEN);
@@ -247,7 +339,7 @@ int main() {
     while (prev != neutrals.size()) {
         // これ以上進まなくなるまで，すでにスコア付けされている状態の一手前にスコア付け
         prev = neutrals.size();
-        printf("while\n");
+        // printf("while\n");
         // iter = 0;
         // int* tmp = (int*)malloc(sizeof(int) * LIST_LEN);
         // for (int i = 0; i < LIST_LEN; i++) {
@@ -279,15 +371,18 @@ int main() {
                 continue;
             }
 
-            if (min < 0) scores[neutrals[i]] = -1 - min;
-            else scores[neutrals[i]] = 1 - min;
+            int score = min < 0 ? -1 - min : 1 - min;
+            scores[neutrals[i]] = score;
+            // if (min < 0) scores[neutrals[i]] = -1 - min;
+            // else scores[neutrals[i]] = 1 - min;
 
             // next_move[neutrals[i]] = best_move;
 
-            // printf("%d,%d,%d\n", neutrals[i], best_move, scores[neutrals[i]]);
+            printf("%d,%d,%d\n", neutrals[i], best_move, scores[neutrals[i]]);
         }
 
-        neutrals = tmp;
+        neutrals.resize(tmp.size());
+        for (int i = 0; i < tmp.size(); i++) neutrals[i] = tmp[i];
         
         // memcpy(neutrals, tmp, sizeof(int) * LIST_LEN);
         // free(tmp);
