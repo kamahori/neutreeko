@@ -277,17 +277,17 @@ int* get_moves(const int x) {
                 // res[iter] = -1;
                 if (i == 0 && j == 0) continue;
                 for (int s = 1; s < 5; s++) {
-                    if (a + j * s < 0 || a + j * s >= 5 || b + i * s < 0 || b + i * s >= 5) continue;
+                    if (a + i * s < 0 || a + i * s >= 5 || b + j * s < 0 || b + j * s >= 5) continue;
 
-                    if (board[a + j * s][b + i * s] == 0) {
+                    if (board[a + i * s][b + j * s] == 0) {
                         // (a, b) -> (a + j * s, b + i * s)
                         int tmp = x;
                         int mask = ((1 << 30) - 1) - ((1 << (30 - 5 * pawn)) - 1) + ((1 << (25 - 5 * pawn)) - 1);
                         tmp &= mask;
-                        tmp |= (((a + j * s) * 5 + b + i * s) << (25 - 5 * pawn));
+                        tmp |= (((a + i * s) * 5 + b + j * s) << (25 - 5 * pawn));
                         res[iter] = equiv(tmp);
                     } else {
-                        continue;
+                        break;
                     }
                 }
                 iter++;
