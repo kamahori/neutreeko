@@ -84,22 +84,17 @@ void moveable(board B, int y, int x) {
     k = 0;
     for (i = -1; i <= 1; i++) {
         for (j = -1; j <= 1; j++) { //全方位探索
-
             if (i == 0 && j == 0) {
                 continue;
             }
-
             for (s = 1; s < 5; s++) { //その方位でどこまで行けるか
-
                 if (y + j * s < 0 || y + j * s >= 5 || x + i * s < 0 || x + i * s >= 5) {
                     break;
                 }
-
                 if (B.state[y + j * s][x + i * s] == 0) { //進んだ先のマスが空なら
                     answer[k][0] = y + j * s; //answerのi+j-2（方角のパラメータ）にそのマスを書き込む
                     answer[k][1] = x + i * s;
-                }
-                else {
+                } else {
                     break;
                 }
             }
@@ -110,9 +105,9 @@ void moveable(board B, int y, int x) {
 }
 
 int is_valid_move(char* input) {
-    if (input[0] < '0' || input[0] > '4') return 0;
+    if (input[0] < '1' || input[0] > '5') return 0;
     if (input[1] < 'A' || input[1] > 'E') return 0;
-    if (input[2] < '0' || input[2] > '4') return 0;
+    if (input[2] < '1' || input[2] > '5') return 0;
     if (input[3] < 'A' || input[3] > 'E') return 0;
     return 1;
 }
@@ -129,13 +124,13 @@ void get_input(int color) { //石を動かす関数
     z = input[3] - 'A';
 
     if (!is_valid_move(input) || b.state[y][x] != color) {
-        puts("Error");
+        puts("Error: illegal");
         exit(1);
     }
 
     moveable(b, y, x);
 
-    for (i = 0; i < 9; i++) {
+    for (i = 0; i < 8; i++) {
         if (answer[i][0] == w && answer[i][1] == z) { //石が移動できるなら
             b.state[y][x] = 0; //元いた場所を空にして
             b.state[w][z] = color; //移動する
@@ -144,7 +139,7 @@ void get_input(int color) { //石を動かす関数
     }
 
     // 移動できない場合
-    puts("Error");
+    puts("Error: cannot move");
     exit(1);
 }
 
@@ -227,23 +222,23 @@ void diff(board b, board b_next) {
 int sort_state(const int state) {
     int res = 0;
 
-    int b[3] = {(state >> 25) & 0b11111, (state >> 20) & 0b11111, (state >> 15) & 0b11111};
+    int B[3] = {(state >> 25) & 0b11111, (state >> 20) & 0b11111, (state >> 15) & 0b11111};
     int w[3] = {(state >> 10) & 0b11111, (state >>  5) & 0b11111, (state >>  0) & 0b11111};
     
-    if (b[1] > b[2]) {
-        int keep = b[1];
-        b[1] = b[2];
-        b[2] = keep;
+    if (B[1] > B[2]) {
+        int keep = B[1];
+        B[1] = B[2];
+        B[2] = keep;
     }
-    if (b[0] > b[1]) {
-        int keep = b[0];
-        b[0] = b[1];
-        b[1] = keep;
+    if (B[0] > B[1]) {
+        int keep = B[0];
+        B[0] = B[1];
+        B[1] = keep;
     }
-    if (b[1] > b[2]) {
-        int keep = b[1];
-        b[1] = b[2];
-        b[2] = keep;
+    if (B[1] > B[2]) {
+        int keep = B[1];
+        B[1] = B[2];
+        B[2] = keep;
     }
 
     if (w[1] > w[2]) {
@@ -262,7 +257,7 @@ int sort_state(const int state) {
         w[2] = keep;
     }
 
-    res = (b[0] << 25) | (b[1] << 20) | (b[2] << 15) | (w[0] << 10) | (w[1] << 5) | w[2];
+    res = (B[0] << 25) | (B[1] << 20) | (B[2] << 15) | (w[0] << 10) | (w[1] << 5) | w[2];
     
     return res;
 }
@@ -355,9 +350,9 @@ int search(int state) {
         printf("cannot read file\n");
         return -1;
     } else {
-        while (fscanf(fp, "%d,%d,%d", &current, &next, &score) == 1) {
+        while (fscanf(fp, "%d,%d,%d", &current, &next, &score) != EOF) {
             if (current == tmp && score > 0) {
-                return next;
+                return equiv(next);
             }
         }
     }
@@ -382,46 +377,50 @@ void compute_output(int color) {
         }
     }
     // if (color == WHITE) state = switch_player(state);
+    state = equiv(state);
     int next = search(state);
+
+    board b_tmp;
+    for (int i = 0; i < 5; i++) for (int j = 0; j < 5; j++) b_tmp.state[i][j] = 0;
+
+    for (int i = 0; i < 3; i++) {
+        int loc = (state >> (25 - 5 * i)) & 0b11111;
+        b_tmp.state[loc / 5][loc % 5] = BLACK;
+    }
+    for (int i = 0; i < 3; i++) {
+        int loc = (state >> (10 - 5 * i)) & 0b11111;
+        b_tmp.state[loc / 5][loc % 5] = WHITE;
+    }
+
     if (next == -1) {
         for (int i = 0; i < 3; i++) {
+            int isfound = 0;
             int loc = (state >> (25 - 5 * i)) & 0b11111;
-            moveable(b, loc / 5, loc % 5);
-            for (int j = 0; j < 9; j++) {
+            moveable(b_tmp, loc / 5, loc % 5);
+            for (int j = 0; j < 8; j++) {
                 if (answer[j][0] == 100 && answer[j][1] == 100) continue;
                 // (loc/5 loc%5) -> (answer[j][0], answer[j][1])
                 int mask = (1 << 15) - 1;
                 int tmp_state = state & mask;
-                int b[3] = {(state >> 25) & 0b11111, (state >> 20) & 0b11111, (state >> 15) & 0b11111};
-                b[i] = answer[j][0] * 5 + answer[j][1];
-                if (b[1] > b[2]) {
-                    int keep = b[1];
-                    b[1] = b[2];
-                    b[2] = keep;
-                }
-                if (b[0] > b[1]) {
-                    int keep = b[0];
-                    b[0] = b[1];
-                    b[1] = keep;
-                }
-                if (b[1] > b[2]) {
-                    int keep = b[1];
-                    b[1] = b[2];
-                    b[2] = keep;
-                }
-                tmp_state |= (b[0] << 25) | (b[1] << 20) | (b[2] << 15);
+                int B[3] = {(state >> 25) & 0b11111, (state >> 20) & 0b11111, (state >> 15) & 0b11111};
+                B[i] = answer[j][0] * 5 + answer[j][1];
+                tmp_state |= (B[0] << 25) | (B[1] << 20) | (B[2] << 15);
                 tmp_state = equiv(tmp_state);
                 int candidate = search(tmp_state);
                 if (candidate > 0) {
                     next = tmp_state;
+                    printf("fine\n");
+                    isfound = 1;
                     break;
                 }
                 if (!is_won(tmp_state, WHITE)) {
                     next = tmp_state;
                 }
             }
-            // if (next > 0) break;
+            if (isfound) break;
         }
+    } else {
+        printf("FINE\n");
     }
     // if (color == WHITE) state = switch_player(state);
 
@@ -479,8 +478,7 @@ int main(int argc, char* argv[]) {
                 exit(0);
             }
         }
-    }
-    else {
+    } else {
         // コンピュータが先手(黒)
         while (1) {
             print();
