@@ -201,24 +201,6 @@ board minimax(board x, int depth, int color) {
     return ans;
 }
 
-void diff(board b, board b_next) {
-    // b -> b_nextで変化したところを出力する
-    char res[4];
-    for (int i = 0; i < 5; i++) {
-        for (int j = 0; j < 5; j++) {
-            if (b.state[i][j] == b_next.state[i][j]) continue;
-            if (b_next.state[i][j] == 0) {
-                res[0] = '1' + i;
-                res[1] = 'A' + j;
-            } else {
-                res[2] = '1' + i;
-                res[3] = 'A' + j;
-            }
-        }
-    }
-    printf("%s\n", res);
-}
-
 int sort_state(const int state) {
     int res = 0;
 
@@ -272,6 +254,17 @@ int mirror(const int state) {
     return res;
 }
 
+board mirror_board(board B) {
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 2; j++) {
+            int tmp = B.state[i][j];
+            B.state[i][j] = B.state[i][4 - j];
+            B.state[i][4 - j] = tmp;
+        }
+    }
+    return B;
+}
+
 int rotate(const int state) {
     int res = 0;
     for (int i = 0; i < 6; i++) {
@@ -283,7 +276,16 @@ int rotate(const int state) {
     return res;
 }
 
-int transformation = -1;
+board rotate_board(board B) {
+    board res;
+    for (int i = 0; i < 5; i++) for (int j = 0; j < 5; j++) res.state[i][j] = 0;
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 5; j++) {
+            res.state[i][j] = B.state[j][i];
+        }
+    }
+    return res;
+}
 
 int equiv(const int state) {
     int res = sort_state(state);
@@ -310,6 +312,59 @@ int equiv(const int state) {
     if (res > sort_state(tmp)) res = sort_state(tmp);
 
     return res;
+}
+
+int distance(board x, board y) {
+    int res = 0;
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 5; j++) {
+            if (x.state[i][j] != y.state[i][j]) res++;
+        }
+    }
+    return res;
+}
+
+void print_diff(board B, board b_next) {
+    // b -> b_nextで変化したところを出力する
+    char res[4];
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 5; j++) {
+            if (B.state[i][j] == b_next.state[i][j]) continue;
+            if (b_next.state[i][j] == 0) {
+                res[0] = '1' + i;
+                res[1] = 'A' + j;
+            } else {
+                res[2] = '1' + i;
+                res[3] = 'A' + j;
+            }
+        }
+    }
+    printf("%c%c%c%c\n", res[0], res[1], res[2], res[3]);
+    b = b_next;
+}
+
+void diff(board b, board b_next) {
+    if (distance(b, b_next) == 2) return print_diff(b, b_next);
+
+    b_next = mirror_board(b_next);
+    if (distance(b, b_next) == 2) return print_diff(b, b_next);
+    b_next = rotate_board(b_next);
+    if (distance(b, b_next) == 2) return print_diff(b, b_next);
+
+    b_next = mirror_board(b_next);
+    if (distance(b, b_next) == 2) return print_diff(b, b_next);
+    b_next = rotate_board(b_next);
+    if (distance(b, b_next) == 2) return print_diff(b, b_next);
+
+    b_next = mirror_board(b_next);
+    if (distance(b, b_next) == 2) return print_diff(b, b_next);
+    b_next = rotate_board(b_next);
+    if (distance(b, b_next) == 2) return print_diff(b, b_next);
+
+    b_next = mirror_board(b_next);
+    if (distance(b, b_next) == 2) return print_diff(b, b_next);
+    b_next = rotate_board(b_next);
+    if (distance(b, b_next) == 2) return print_diff(b, b_next);
 }
 
 int switch_player(const int x) {
@@ -409,7 +464,7 @@ void compute_output(int color) {
                 int candidate = search(tmp_state);
                 if (candidate > 0) {
                     next = tmp_state;
-                    printf("fine\n");
+                    if (DEBUG == 1) printf("fine\n");
                     isfound = 1;
                     break;
                 }
@@ -420,7 +475,7 @@ void compute_output(int color) {
             if (isfound) break;
         }
     } else {
-        printf("FINE\n");
+        if (DEBUG == 1) printf("FINE\n");
     }
     // if (color == WHITE) state = switch_player(state);
 
@@ -440,8 +495,8 @@ void compute_output(int color) {
         int loc = (next >> (10 - 5 * i)) & 0b11111;
         b_next.state[loc / 5][loc % 5] = 3 - color;
     }
-    // diff(b, b_next);
-    b = b_next;
+    diff(b, b_next);
+    // b = b_next;
 }
 
 int main(int argc, char* argv[]) {
