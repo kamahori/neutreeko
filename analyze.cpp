@@ -2,14 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-#include <map>
 #include <vector>
 
 const int BLACK = 1;
 const int WHITE = 2;
 const int MAX_DEPTH = 1e5;
 const int INF = 1e8;
-// const int LIST_LEN = 1e8; //4e6;
 const int COMB_LEN = 2500;
 
 /*
@@ -30,29 +28,140 @@ const int COMB_LEN = 2500;
 1|  0  1  2  3  4
 */
 
-typedef struct state {
-    char pos[6];
-    // {黒，黒，黒，白，白，白} 場所のリスト
-    // 昇順を仮定
-} state;
+//keyは状態を表すint、dataはそのscore
 
-void printb(unsigned int v) {
-    unsigned int mask = (int)1 << (sizeof(v) * CHAR_BIT - 1);
-    do putchar(mask & v ? '1' : '0');
-    while (mask >>= 1);
-    printf("\n");
+#define SIZE 999983
+
+typedef struct DI {
+    int data;
+    int key;
+} DataItem;
+
+//DataItemのポインタの配列、DataItemのポインタ
+DataItem *hashArray[SIZE];
+
+//ハッシュ関数の定義
+int hashCode(int key){
+    return key % SIZE;
 }
 
-int state_to_int(state s) {
-    int res = 0;
-    res |= (s.pos[0] - 'a') << 25;
-    res |= (s.pos[1] - 'a') << 20;
-    res |= (s.pos[2] - 'a') << 15;
-    res |= (s.pos[3] - 'a') << 10;
-    res |= (s.pos[4] - 'a') <<  5;
-    res |= (s.pos[5] - 'a') <<  0;
-    return res;
+//線形探索法による検索
+DataItem *search(int key)
+{
+    int hashIndex = hashCode(key);
+    while(hashArray[hashIndex] != NULL){
+        if(hashArray[hashIndex]->key == key) {
+            return hashArray[hashIndex];
+        }
+        hashIndex++;
+        hashIndex %= SIZE;
+    }
+    //見つからなかった場合
+    return NULL;
 }
+
+//挿入
+void insert(int key, int data){
+    DataItem *item = (DataItem *)malloc(sizeof(DataItem));
+    item->data = data;
+    item->key = key;
+    int hashIndex = hashCode(key);
+    while(hashArray[hashIndex] != NULL && hashArray[hashIndex]->key != -1){
+        hashIndex++;
+        hashIndex %= SIZE;
+    }
+    hashArray[hashIndex] = item;
+}
+
+//削除
+// DataItem *delete(DataItem *item){
+//     int key = item.key;
+//     int hashIndex = hashCode(key);
+//     while(hashArray[hashIndex] != NULL) {
+//         if(hashArray[hashIndex].key == key){
+//             DataItem *temp = hashArray[hashIndex];
+//             hashArray[hashIndex] = dummyItem;
+//             //削除したDataItemを出力
+//             return temp;
+//         }
+//         hashIndex++;
+//         hashIndex %= SIZE;
+//     }
+//     return NULL;
+// }
+
+//int型のvectorの実装2
+
+// typedef struct vector{
+//     //1個目の要素へのポインタ
+//     int* data;
+//     //予約されている領域サイズ
+//     int reserved_size;
+//     //現在使用中の領域サイズ
+//     int now_size;
+// } vector;
+
+// vector* create_vector(int size){
+//     //reserved_size = sizeのvectorを作りそのポインタを返す
+//     vector *vec=(vector*)malloc(sizeof(vector));
+//     if(vec == NULL) {
+//         puts("vectorをいれる領域が確保できませんでした");
+//         return NULL;
+//     }
+//     vec.now_size = 0;
+//     vec.reserved_size = size;
+//     vec.data = malloc(size * sizeof(int));
+//     if(vec.data == NULL) {
+//         puts("予約領域を確保できませんでした")
+//         return vec;
+//     }
+//     memset(vec.data, 0, size * sizeof(int))；
+//     return vec;
+// }
+// 
+// int realloc_vector(vector *vec, int realloc_size){
+//     //reserved_size = realloc_sizeのvectorに変更
+//     //成功すれば1を返し、失敗すれば0を返す
+//     int *p;
+//     if((p = realloc(vec.data, realloc_size * sizeof(int))) == NULL){
+//         return 0;
+//     }
+//     vec.data = p;
+//     //新しくできた領域を0で初期化
+//     memset(vec.data+(vec.reserved_size * sizeof(int)), 0, (realloc_size - vec.reserved_size) * sizeof(int));
+//     vec.reserved_size = realloc_size;
+//     return 1;
+// }
+// ​
+// int push_back(vector *vec, int *data){
+//     //成功したら1を返す
+//     if(vec.size == vec.reserved_size && realloc_vector(*vec, vec.reserved_size + (vec.reserved_size >> 1) + 1) == 0){
+//         puts("bad realloc vector(push_back)\n")
+//         exit(0);
+//     }
+//     memcpy(vec.data + (vec.now_size++ * sizeof(int)), data, sizeof(int));
+//     return 1;
+// }
+// ​
+// int set_vector(vector *vec, int pos, int *data){
+//     //pos番目のマスを書き換える
+//     // *data = vec[pos]
+//     if(vec.now_size <= pos){
+//         vec.now_size = pos;
+//     }
+//     if(vec.now_size >= vec.reserved_size && realloc_vector(vec, vec.now_size + (vec.now_size >> 1) + 1) == 0){
+//         puts("bad realloc vector(set_vector)\n")
+//         exit(0);
+//     }
+//     memcpy(vec.data + (pos * sizeof(int)),　data, sizeof(int));
+//     return 1;
+// }
+// ​
+// int* get_vector(vector *vec, int pos, int* data){
+//     //pos番目のマスの値をdataに移し、dataを返す
+//     memcpy(data, vec.data + (pos * sizeof(int)), sizeof(int));
+//     return data;
+// }
 
 int sort_state(const int state) {
     int res = 0;
@@ -149,17 +258,6 @@ int switch_player(const int x) {
     int y = (x & ((1 << 15) - 1)) << 15;
     y |= (x >> 15);
     return equiv(y);
-}
-
-state int_to_state(int x) {
-    state res;
-    res.pos[0] = ((x >> 25) & 0b11111) + 'a';
-    res.pos[1] = ((x >> 20) & 0b11111) + 'a';
-    res.pos[2] = ((x >> 15) & 0b11111) + 'a';
-    res.pos[3] = ((x >> 10) & 0b11111) + 'a';
-    res.pos[4] = ((x >>  5) & 0b11111) + 'a';
-    res.pos[5] = ((x >>  0) & 0b11111) + 'a';
-    return res;
 }
 
 int is_won(int x, int color) {
@@ -299,7 +397,8 @@ int* get_moves(const int x) {
 }
 
 int main() {
-    std::map<int, int> scores;
+
+    // std::map<int, int> scores;
     // std::map<int, int> next_move;
     // int* scores = (int*)malloc(sizeof(int) * (1 << 30));
     // int* next_move = (int*)malloc(sizeof(int) * (1 << 30));
@@ -326,9 +425,11 @@ int main() {
         // }
 
         if (is_won(states[i], BLACK)) {
-            scores[states[i]] = MAX_DEPTH;
+            insert(states[i], MAX_DEPTH);
+            // scores[states[i]] = MAX_DEPTH;
         } else if (is_won(states[i], WHITE)) {
-            scores[states[i]] = -MAX_DEPTH;
+            insert(states[i], -MAX_DEPTH);
+            // scores[states[i]] = -MAX_DEPTH;
         } else {
             neutrals.push_back(states[i]);
             iter++;
@@ -359,8 +460,14 @@ int main() {
                 //     best_move = moves[j];
                 // }
                 int opposite = switch_player(moves[j]);
-                if (scores[opposite] < min) {
-                    min = scores[opposite];
+                DataItem *opposite_data = search(opposite);
+                int opposite_score;
+                if (opposite_data == NULL) opposite_score = 0;
+                else opposite_score = opposite_data->data;
+                // if (opposite_data->data == NULL) opposite_score = 0;
+                // else opposite_score = opposite_data->data;
+                if (opposite_score < min) {
+                    min = opposite_score;
                     best_move = moves[j];
                 }
             }
@@ -372,13 +479,14 @@ int main() {
             }
 
             int score = min < 0 ? -1 - min : 1 - min;
-            scores[neutrals[i]] = score;
+            // scores[neutrals[i]] = score;
+            insert(neutrals[i], score);
             // if (min < 0) scores[neutrals[i]] = -1 - min;
             // else scores[neutrals[i]] = 1 - min;
 
             // next_move[neutrals[i]] = best_move;
 
-            printf("%d,%d,%d\n", neutrals[i], best_move, scores[neutrals[i]]);
+            printf("%d,%d,%d\n", neutrals[i], best_move, score);
         }
 
         neutrals.resize(tmp.size());
